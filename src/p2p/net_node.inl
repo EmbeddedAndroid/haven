@@ -1,4 +1,4 @@
-// Copyright (c) 2014-2018, The Monero Project
+// Copyright (c) 2014-2017, The Monero Project
 //
 // All rights reserved.
 //
@@ -270,7 +270,6 @@ namespace nodetool
     m_allow_local_ip = command_line::get_arg(vm, arg_p2p_allow_local_ip);
     m_no_igd = command_line::get_arg(vm, arg_no_igd);
     m_offline = command_line::get_arg(vm, cryptonote::arg_offline);
-    m_testnet = command_line::get_arg(vm, cryptonote::arg_testnet_on);
 
     if (command_line::has_arg(vm, arg_p2p_add_peer))
     {
@@ -382,14 +381,8 @@ namespace nodetool
     }
     else
     {
-      full_addrs.insert("107.152.130.98:18080");
-      full_addrs.insert("212.83.175.67:18080");
-      full_addrs.insert("5.9.100.248:18080");
-      full_addrs.insert("163.172.182.165:18080");
-      full_addrs.insert("161.67.132.39:18080");
-      full_addrs.insert("198.74.231.92:18080");
-      full_addrs.insert("195.154.123.123:28080");
-      full_addrs.insert("212.83.172.165:28080");
+      full_addrs.insert("45.55.31.18:17749");
+      full_addrs.insert("165.227.51.19:17749");
     }
     return full_addrs;
   }
@@ -399,16 +392,14 @@ namespace nodetool
   bool node_server<t_payload_net_handler>::init(const boost::program_options::variables_map& vm)
   {
     std::set<std::string> full_addrs;
-
-    bool res = handle_command_line(vm);
-    CHECK_AND_ASSERT_MES(res, false, "Failed to handle command line");
+    m_testnet = command_line::get_arg(vm, cryptonote::arg_testnet_on);
 
     if (m_testnet)
     {
       memcpy(&m_network_id, &::config::testnet::NETWORK_ID, 16);
       full_addrs = get_seed_nodes(true);
     }
-    else if (m_exclusive_peers.empty())
+    else
     {
       memcpy(&m_network_id, &::config::NETWORK_ID, 16);
       // for each hostname in the seed nodes list, attempt to DNS resolve and
@@ -474,7 +465,7 @@ namespace nodetool
         if (result.size())
         {
           for (const auto& addr_string : result)
-            full_addrs.insert(addr_string + ":18080");
+            full_addrs.insert(addr_string + ":17749");
         }
         ++i;
       }
@@ -498,6 +489,9 @@ namespace nodetool
       append_net_address(m_seed_nodes, full_addr);
     }
     MDEBUG("Number of seed nodes: " << m_seed_nodes.size());
+
+    bool res = handle_command_line(vm);
+    CHECK_AND_ASSERT_MES(res, false, "Failed to handle command line");
 
     auto config_arg = m_testnet ? cryptonote::arg_testnet_data_dir : cryptonote::arg_data_dir;
     m_config_folder = command_line::get_arg(vm, config_arg);
@@ -740,7 +734,7 @@ namespace nodetool
     }
     else
     {
-      try_get_support_flags(context_, [](p2p_connection_context& flags_context, const uint32_t& support_flags) 
+      try_get_support_flags(context_, [](p2p_connection_context& flags_context, const uint32_t& support_flags)
       {
         flags_context.support_flags = support_flags;
       });
@@ -1062,10 +1056,7 @@ namespace nodetool
         max_random_index = std::min<uint64_t>(local_peers_count -1, 20);
         random_index = get_random_index_with_fixed_probability(max_random_index);
       } else {
-        local_peers_count = m_peerlist.get_gray_peers_count();
-        if (!local_peers_count)
-          return false;
-        random_index = crypto::rand<size_t>() % local_peers_count;
+        random_index = crypto::rand<size_t>() % m_peerlist.get_gray_peers_count();
       }
 
       CHECK_AND_ASSERT_MES(random_index < local_peers_count, false, "random_starter_index < peers_local.size() failed!!");
@@ -1110,7 +1101,7 @@ namespace nodetool
   template<class t_payload_net_handler>
   bool node_server<t_payload_net_handler>::connect_to_seed()
   {
-      if (m_seed_nodes.empty() || m_offline || !m_exclusive_peers.empty())
+      if (m_seed_nodes.empty() || m_offline)
         return true;
 
       size_t try_count = 0;
@@ -1375,7 +1366,7 @@ namespace nodetool
     }
     rsp.connections_count = m_net_server.get_config_object().get_connections_count();
     rsp.incoming_connections_count = rsp.connections_count - get_outgoing_connections_count();
-    rsp.version = MONERO_VERSION_FULL;
+    rsp.version = HAVEN_VERSION_FULL;
     rsp.os_version = tools::get_os_version_string();
     m_payload_handler.get_stat_info(rsp.payload_info);
     return 1;
@@ -1553,25 +1544,25 @@ namespace nodetool
     COMMAND_REQUEST_SUPPORT_FLAGS::request support_flags_request;
     bool r = epee::net_utils::async_invoke_remote_command2<typename COMMAND_REQUEST_SUPPORT_FLAGS::response>
     (
-      context.m_connection_id, 
-      COMMAND_REQUEST_SUPPORT_FLAGS::ID, 
-      support_flags_request, 
+      context.m_connection_id,
+      COMMAND_REQUEST_SUPPORT_FLAGS::ID,
+      support_flags_request,
       m_net_server.get_config_object(),
       [=](int code, const typename COMMAND_REQUEST_SUPPORT_FLAGS::response& rsp, p2p_connection_context& context_)
-      {  
+      {
         if(code < 0)
         {
           LOG_WARNING_CC(context_, "COMMAND_REQUEST_SUPPORT_FLAGS invoke failed. (" << code <<  ", " << epee::levin::get_err_descr(code) << ")");
           return;
         }
-        
+
         f(context_, rsp.support_flags);
       },
       P2P_DEFAULT_HANDSHAKE_INVOKE_TIMEOUT
     );
 
     return r;
-  }  
+  }
   //-----------------------------------------------------------------------------------
   template<class t_payload_net_handler>
   int node_server<t_payload_net_handler>::handle_timed_sync(int command, typename COMMAND_TIMED_SYNC::request& arg, typename COMMAND_TIMED_SYNC::response& rsp, p2p_connection_context& context)
@@ -1657,8 +1648,8 @@ namespace nodetool
         LOG_DEBUG_CC(context, "PING SUCCESS " << context.m_remote_address.host_str() << ":" << port_l);
       });
     }
-    
-    try_get_support_flags(context, [](p2p_connection_context& flags_context, const uint32_t& support_flags) 
+
+    try_get_support_flags(context, [](p2p_connection_context& flags_context, const uint32_t& support_flags)
     {
       flags_context.support_flags = support_flags;
     });

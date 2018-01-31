@@ -1,4 +1,4 @@
-// Copyright (c) 2014-2018, The Monero Project
+// Copyright (c) 2014-2017, The Monero Project
 //
 // All rights reserved.
 //
@@ -458,16 +458,6 @@ bool WalletImpl::recoverFromKeys(const std::string &path,
                                 const std::string &viewkey_string,
                                 const std::string &spendkey_string)
 {
-    return recoverFromKeysWithPassword(path, "", language, address_string, viewkey_string, spendkey_string);
-}
-
-bool WalletImpl::recoverFromKeysWithPassword(const std::string &path,
-                                 const std::string &password,
-                                 const std::string &language,
-                                 const std::string &address_string,
-                                 const std::string &viewkey_string,
-                                 const std::string &spendkey_string)
-{
     cryptonote::address_parse_info info;
     if(!get_account_address_from_str(info, m_wallet->testnet(), address_string))
     {
@@ -534,12 +524,12 @@ bool WalletImpl::recoverFromKeysWithPassword(const std::string &path,
     try
     {
         if (has_spendkey) {
-            m_wallet->generate(path, password, info.address, spendkey, viewkey);
+            m_wallet->generate(path, "", info.address, spendkey, viewkey);
             setSeedLanguage(language);
             LOG_PRINT_L1("Generated new wallet from keys with seed language: " + language);
         }
         else {
-            m_wallet->generate(path, password, info.address, viewkey);
+            m_wallet->generate(path, "", info.address, viewkey);
             LOG_PRINT_L1("Generated new view only wallet from keys");
         }
         
@@ -580,11 +570,6 @@ bool WalletImpl::open(const std::string &path, const std::string &password)
 
 bool WalletImpl::recover(const std::string &path, const std::string &seed)
 {
-    return recover(path, "", seed);
-}
-
-bool WalletImpl::recover(const std::string &path, const std::string &password, const std::string &seed)
-{
     clearStatus();
     m_errorString.clear();
     if (seed.empty()) {
@@ -605,7 +590,7 @@ bool WalletImpl::recover(const std::string &path, const std::string &password, c
 
     try {
         m_wallet->set_seed_language(old_language);
-        m_wallet->generate(path, password, recovery_key, true, false);
+        m_wallet->generate(path, "", recovery_key, true, false);
 
     } catch (const std::exception &e) {
         m_status = Status_Critical;
@@ -1581,55 +1566,6 @@ bool WalletImpl::checkSpendProof(const std::string &txid_str, const std::string 
     {
         m_status = Status_Ok;
         good = m_wallet->check_spend_proof(txid, message, signature);
-        return true;
-    }
-    catch (const std::exception &e)
-    {
-        m_status = Status_Error;
-        m_errorString = e.what();
-        return false;
-    }
-}
-
-std::string WalletImpl::getReserveProof(bool all, uint32_t account_index, uint64_t amount, const std::string &message) const {
-    try
-    {
-        m_status = Status_Ok;
-        boost::optional<std::pair<uint32_t, uint64_t>> account_minreserve;
-        if (!all)
-        {
-            account_minreserve = std::make_pair(account_index, amount);
-        }
-        return m_wallet->get_reserve_proof(account_minreserve, message);
-    }
-    catch (const std::exception &e)
-    {
-        m_status = Status_Error;
-        m_errorString = e.what();
-        return "";
-    }
-}
-
-bool WalletImpl::checkReserveProof(const std::string &address, const std::string &message, const std::string &signature, bool &good, uint64_t &total, uint64_t &spent) const {
-    cryptonote::address_parse_info info;
-    if (!cryptonote::get_account_address_from_str(info, m_wallet->testnet(), address))
-    {
-        m_status = Status_Error;
-        m_errorString = tr("Failed to parse address");
-        return false;
-    }
-    if (info.is_subaddress)
-    {
-        m_status = Status_Error;
-        m_errorString = tr("Address must not be a subaddress");
-        return false;
-    }
-
-    good = false;
-    try
-    {
-        m_status = Status_Ok;
-        good = m_wallet->check_reserve_proof(info.address, message, signature, total, spent);
         return true;
     }
     catch (const std::exception &e)

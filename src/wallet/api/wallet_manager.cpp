@@ -1,4 +1,4 @@
-// Copyright (c) 2014-2018, The Monero Project
+// Copyright (c) 2014-2017, The Monero Project
 //
 // All rights reserved.
 //
@@ -76,39 +76,17 @@ Wallet *WalletManagerImpl::openWallet(const std::string &path, const std::string
     return wallet;
 }
 
-Wallet *WalletManagerImpl::recoveryWallet(const std::string &path, const std::string &mnemonic, bool testnet, uint64_t restoreHeight)
-{
-    return recoveryWallet(path, "", mnemonic, testnet, restoreHeight);
-}
-
-Wallet *WalletManagerImpl::createWalletFromKeys(const std::string &path,
-                                                const std::string &language,
-                                                bool testnet,
-                                                uint64_t restoreHeight,
-                                                const std::string &addressString,
-                                                const std::string &viewKeyString,
-                                                const std::string &spendKeyString)
-{
-    return createWalletFromKeys(path, "", language, testnet, restoreHeight,
-                                addressString, viewKeyString, spendKeyString);
-}
-
-Wallet *WalletManagerImpl::recoveryWallet(const std::string &path,
-                                                const std::string &password,
-                                                const std::string &mnemonic,
-                                                bool testnet,
-                                                uint64_t restoreHeight)
+Wallet *WalletManagerImpl::recoveryWallet(const std::string &path, const std::string &memo, bool testnet, uint64_t restoreHeight)
 {
     WalletImpl * wallet = new WalletImpl(testnet);
     if(restoreHeight > 0){
         wallet->setRefreshFromBlockHeight(restoreHeight);
     }
-    wallet->recover(path, password, mnemonic);
+    wallet->recover(path, memo);
     return wallet;
 }
 
-Wallet *WalletManagerImpl::createWalletFromKeys(const std::string &path,
-                                                const std::string &password,
+Wallet *WalletManagerImpl::createWalletFromKeys(const std::string &path, 
                                                 const std::string &language,
                                                 bool testnet, 
                                                 uint64_t restoreHeight,
@@ -120,7 +98,7 @@ Wallet *WalletManagerImpl::createWalletFromKeys(const std::string &path,
     if(restoreHeight > 0){
         wallet->setRefreshFromBlockHeight(restoreHeight);
     }
-    wallet->recoverFromKeysWithPassword(path, password, language, addressString, viewKeyString, spendKeyString);
+    wallet->recoverFromKeys(path, language, addressString, viewKeyString, spendKeyString);
     return wallet;
 }
 
@@ -322,7 +300,7 @@ std::tuple<bool, std::string, std::string, std::string, std::string> WalletManag
     if (!tools::check_updates(software, buildtag, version, hash))
       return std::make_tuple(false, "", "", "", "");
 
-    if (tools::vercmp(version.c_str(), MONERO_VERSION) > 0)
+    if (tools::vercmp(version.c_str(), HAVEN_VERSION) > 0)
     {
       std::string user_url = tools::get_update_url(software, subdir, buildtag, version, true);
       std::string auto_url = tools::get_update_url(software, subdir, buildtag, version, false);

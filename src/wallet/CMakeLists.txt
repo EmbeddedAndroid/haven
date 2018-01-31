@@ -1,4 +1,6 @@
-# Copyright (c) 2014-2018, The Monero Project
+# Copyright (c) 2017-2018, Haven Protocol
+#
+# Portions Copyright (c) 2014-2017 The Monero Project.
 #
 # All rights reserved.
 #
@@ -96,7 +98,7 @@ target_link_libraries(wallet_rpc_server
     ${EXTRA_LIBRARIES})
 set_property(TARGET wallet_rpc_server
   PROPERTY
-    OUTPUT_NAME "monero-wallet-rpc")
+    OUTPUT_NAME "haven-wallet-rpc")
 install(TARGETS wallet_rpc_server DESTINATION bin)
 
 
@@ -126,6 +128,6 @@ if (BUILD_GUI_DEPS)
     endif()
     install(TARGETS wallet_merged
         ARCHIVE DESTINATION ${lib_folder})
-endif()
 
-add_subdirectory(api)
+    add_subdirectory(api)
+endif()

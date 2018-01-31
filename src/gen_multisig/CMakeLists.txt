@@ -1,4 +1,6 @@
-# Copyright (c) 2017, The Monero Project
+# Copyright (c) 2017-2018, Haven Protocol
+#
+# Portions Copyright (c) 2014-2017 The Monero Project.
 #
 # All rights reserved.
 #
@@ -43,12 +45,12 @@ target_link_libraries(gen_multisig
     ${Boost_PROGRAM_OPTIONS_LIBRARY}
     ${Boost_FILESYSTEM_LIBRARY}
     ${Boost_THREAD_LIBRARY}
-    ${Readline_LIBRARY}
     ${CMAKE_THREAD_LIBS_INIT}
+    ${GNU_READLINE_LIBRARY}
     ${EXTRA_LIBRARIES})
 add_dependencies(gen_multisig
   version)
 set_property(TARGET gen_multisig
   PROPERTY
-    OUTPUT_NAME "monero-gen-trusted-multisig")
+    OUTPUT_NAME "haven-gen-trusted-multisig")
 install(TARGETS gen_multisig DESTINATION bin)

@@ -1,21 +1,21 @@
 // Copyright (c) 2014-2017, The Monero Project
-// 
+//
 // All rights reserved.
-// 
+//
 // Redistribution and use in source and binary forms, with or without modification, are
 // permitted provided that the following conditions are met:
-// 
+//
 // 1. Redistributions of source code must retain the above copyright notice, this list of
 //    conditions and the following disclaimer.
-// 
+//
 // 2. Redistributions in binary form must reproduce the above copyright notice, this list
 //    of conditions and the following disclaimer in the documentation and/or other
 //    materials provided with the distribution.
-// 
+//
 // 3. Neither the name of the copyright holder nor the names of its contributors may be
 //    used to endorse or promote products derived from this software without specific
 //    prior written permission.
-// 
+//
 // THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY
 // EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
 // MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL
@@ -25,7 +25,7 @@
 // INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
 // STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF
 // THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-// 
+//
 // Parts of this file are originally copyright (c) 2012-2013 The Cryptonote developers
 
 #include "include_base_utils.h"
@@ -106,8 +106,9 @@ namespace cryptonote
     if (rpc_config->login)
       http_login.emplace(std::move(rpc_config->login->username), std::move(rpc_config->login->password).password());
 
+    auto rng = [](size_t len, uint8_t *ptr){ return crypto::rand(len, ptr); };
     return epee::http_server_impl_base<core_rpc_server, connection_context>::init(
-      std::move(port), std::move(rpc_config->bind_ip), std::move(rpc_config->access_control_origins), std::move(http_login)
+      rng, std::move(port), std::move(rpc_config->bind_ip), std::move(rpc_config->access_control_origins), std::move(http_login)
     );
   }
   //------------------------------------------------------------------------------------------------------------------------------
@@ -492,6 +493,11 @@ namespace cryptonote
         {
           if (std::find(missed_txs.begin(), missed_txs.end(), h) == missed_txs.end())
           {
+            if (txs.empty())
+            {
+              res.status = "Failed: internal error - txs is empty";
+              return true;
+            }
             // core returns the ones it finds in the right order
             if (get_transaction_hash(txs.front()) != h)
             {
@@ -785,7 +791,7 @@ namespace cryptonote
     const miner& lMiner = m_core.get_miner();
     res.active = lMiner.is_mining();
     res.is_background_mining_enabled = lMiner.get_is_background_mining_enabled();
-    
+
     if ( lMiner.is_mining() ) {
       res.speed = lMiner.get_speed();
       res.threads_count = lMiner.get_threads_count();
@@ -1046,7 +1052,7 @@ namespace cryptonote
       error_resp.message = "Wrong block blob";
       return false;
     }
-    
+
     // Fixing of high orphan issue for most pools
     // Thanks Boolberry!
     block b = AUTO_VAL_INIT(b);
@@ -1150,7 +1156,7 @@ namespace cryptonote
       error_resp.message = "Internal error: can't get block by hash. Hash = " + req.hash + '.';
       return false;
     }
-    if (blk.miner_tx.vin.front().type() != typeid(txin_gen))
+    if (blk.miner_tx.vin.size() != 1 || blk.miner_tx.vin.front().type() != typeid(txin_gen))
     {
       error_resp.code = CORE_RPC_ERROR_CODE_INTERNAL_ERROR;
       error_resp.message = "Internal error: coinbase transaction in the block has the wrong type";
@@ -1188,7 +1194,7 @@ namespace cryptonote
         error_resp.message = "Internal error: can't get block by height. Height = " + boost::lexical_cast<std::string>(h) + ". Hash = " + epee::string_tools::pod_to_hex(block_hash) + '.';
         return false;
       }
-      if (blk.miner_tx.vin.front().type() != typeid(txin_gen))
+      if (blk.miner_tx.vin.size() != 1 || blk.miner_tx.vin.front().type() != typeid(txin_gen))
       {
         error_resp.code = CORE_RPC_ERROR_CODE_INTERNAL_ERROR;
         error_resp.message = "Internal error: coinbase transaction in the block has the wrong type";
@@ -1274,7 +1280,7 @@ namespace cryptonote
       error_resp.message = "Internal error: can't get block by hash. Hash = " + req.hash + '.';
       return false;
     }
-    if (blk.miner_tx.vin.front().type() != typeid(txin_gen))
+    if (blk.miner_tx.vin.size() != 1 || blk.miner_tx.vin.front().type() != typeid(txin_gen))
     {
       error_resp.code = CORE_RPC_ERROR_CODE_INTERNAL_ERROR;
       error_resp.message = "Internal error: coinbase transaction in the block has the wrong type";
@@ -1320,7 +1326,7 @@ namespace cryptonote
     res.top_block_hash = string_tools::pod_to_hex(top_hash);
     res.target_height = m_core.get_target_blockchain_height();
     res.difficulty = m_core.get_blockchain_storage().get_difficulty_for_next_block();
-    res.target = m_core.get_blockchain_storage().get_current_hard_fork_version() < 2 ? DIFFICULTY_TARGET_V1 : DIFFICULTY_TARGET_V2;
+    res.target = DIFFICULTY_TARGET;
     res.tx_count = m_core.get_blockchain_storage().get_total_transactions() - res.height; //without coinbase
     res.tx_pool_size = m_core.get_pool_transactions_count();
     res.alt_blocks_count = m_core.get_blockchain_storage().get_alternative_blocks_count();
@@ -1436,19 +1442,25 @@ namespace cryptonote
         {
           failed = true;
         }
-        crypto::hash txid = *reinterpret_cast<const crypto::hash*>(txid_data.data());
-        txids.push_back(txid);
+        else
+        {
+          crypto::hash txid = *reinterpret_cast<const crypto::hash*>(txid_data.data());
+          txids.push_back(txid);
+        }
       }
     }
     if (!m_core.get_blockchain_storage().flush_txes_from_pool(txids))
     {
-      res.status = "Failed to remove one more tx";
+      res.status = "Failed to remove one or more tx(es)";
       return false;
     }
 
     if (failed)
     {
-      res.status = "Failed to parse txid";
+      if (txids.empty())
+        res.status = "Failed to parse txid";
+      else
+        res.status = "Failed to parse some of the txids";
       return false;
     }
 
@@ -1629,7 +1641,7 @@ namespace cryptonote
       res.status = "Error checking for updates";
       return true;
     }
-    if (tools::vercmp(version.c_str(), MONERO_VERSION) <= 0)
+    if (tools::vercmp(version.c_str(), HAVEN_VERSION) <= 0)
     {
       res.update = false;
       res.status = CORE_RPC_STATUS_OK;
@@ -1705,13 +1717,16 @@ namespace cryptonote
     PERF_TIMER(on_relay_tx);
 
     bool failed = false;
+    res.status = "";
     for (const auto &str: req.txids)
     {
       cryptonote::blobdata txid_data;
       if(!epee::string_tools::parse_hexstr_to_binbuff(str, txid_data))
       {
-        res.status = std::string("Invalid transaction id: ") + str;
+        if (!res.status.empty()) res.status += ", ";
+        res.status += std::string("invalid transaction id: ") + str;
         failed = true;
+        continue;
       }
       crypto::hash txid = *reinterpret_cast<const crypto::hash*>(txid_data.data());
 
@@ -1727,8 +1742,10 @@ namespace cryptonote
       }
       else
       {
-        res.status = std::string("Transaction not found in pool: ") + str;
+        if (!res.status.empty()) res.status += ", ";
+        res.status += std::string("transaction not found in pool: ") + str;
         failed = true;
+        continue;
       }
     }
 

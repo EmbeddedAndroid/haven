@@ -47,6 +47,7 @@ using namespace epee;
 #include "cryptonote_config.h"
 #include "cryptonote_tx_utils.h"
 #include "misc_language.h"
+#include "file_io_utils.h"
 #include <csignal>
 #include "checkpoints/checkpoints.h"
 #include "ringct/rctTypes.h"
@@ -377,7 +378,7 @@ namespace cryptonote
     // folder might not be a directory, etc, etc
     catch (...) { }
 
-    BlockchainDB* db = new_db(db_type);
+    std::unique_ptr<BlockchainDB> db(new_db(db_type));
     if (db == NULL)
     {
       LOG_ERROR("Attempted to use non-existent database type");
@@ -468,7 +469,7 @@ namespace cryptonote
     m_blockchain_storage.set_user_options(blocks_threads,
         blocks_per_sync, sync_mode, fast_sync);
 
-    r = m_blockchain_storage.init(db, m_testnet, m_offline, test_options);
+    r = m_blockchain_storage.init(db.release(), m_testnet, m_offline, test_options);
 
     r = m_mempool.init();
     CHECK_AND_ASSERT_MES(r, false, "Failed to initialize memory pool");
@@ -590,8 +591,7 @@ namespace cryptonote
     }
     bad_semantics_txes_lock.unlock();
 
-    uint8_t version = m_blockchain_storage.get_current_hard_fork_version();
-    const size_t max_tx_version = version == 1 ? 1 : 2;
+    const size_t max_tx_version = 2;
     if (tx.version == 0 || tx.version > max_tx_version)
     {
       // v2 is the latest one we know
@@ -886,12 +886,7 @@ namespace cryptonote
   //-----------------------------------------------------------------------------------------------
   size_t core::get_block_sync_size(uint64_t height) const
   {
-    static const uint64_t quick_height = m_testnet ? 801219 : 1220516;
-    if (block_sync_size > 0)
-      return block_sync_size;
-    if (height >= quick_height)
-      return BLOCKS_SYNCHRONIZING_DEFAULT_COUNT;
-    return BLOCKS_SYNCHRONIZING_DEFAULT_COUNT_PRE_V4;
+    return BLOCKS_SYNCHRONIZING_DEFAULT_COUNT;
   }
   //-----------------------------------------------------------------------------------------------
   bool core::are_key_images_spent_in_pool(const std::vector<crypto::key_image>& key_im, std::vector<bool> &spent) const
@@ -913,13 +908,13 @@ namespace cryptonote
       std::list<transaction> txs;
       std::list<crypto::hash> missed_txs;
       uint64_t coinbase_amount = get_outs_money_amount(b.miner_tx);
-      this->get_transactions(b.tx_hashes, txs, missed_txs);      
+      this->get_transactions(b.tx_hashes, txs, missed_txs);
       uint64_t tx_fee_amount = 0;
       for(const auto& tx: txs)
       {
         tx_fee_amount += get_tx_fee(tx);
       }
-      
+
       emission_amount += coinbase_amount - tx_fee_amount;
       total_fee_amount += tx_fee_amount;
       return true;
@@ -944,15 +939,13 @@ namespace cryptonote
   bool core::check_tx_inputs_ring_members_diff(const transaction& tx) const
   {
     const uint8_t version = m_blockchain_storage.get_current_hard_fork_version();
-    if (version >= 6)
+
+    for(const auto& in: tx.vin)
     {
-      for(const auto& in: tx.vin)
-      {
-        CHECKED_GET_SPECIFIC_VARIANT(in, const txin_to_key, tokey_in, false);
-        for (size_t n = 1; n < tokey_in.key_offsets.size(); ++n)
-          if (tokey_in.key_offsets[n] == 0)
-            return false;
-      }
+      CHECKED_GET_SPECIFIC_VARIANT(in, const txin_to_key, tokey_in, false);
+      for (size_t n = 1; n < tokey_in.key_offsets.size(); ++n)
+        if (tokey_in.key_offsets[n] == 0)
+          return false;
     }
     return true;
   }
@@ -1050,21 +1043,6 @@ namespace cryptonote
   bool core::find_blockchain_supplement(const uint64_t req_start_block, const std::list<crypto::hash>& qblock_ids, std::list<std::pair<cryptonote::blobdata, std::list<cryptonote::blobdata> > >& blocks, uint64_t& total_height, uint64_t& start_height, size_t max_count) const
   {
     return m_blockchain_storage.find_blockchain_supplement(req_start_block, qblock_ids, blocks, total_height, start_height, max_count);
-  }
-  //-----------------------------------------------------------------------------------------------
-  void core::print_blockchain(uint64_t start_index, uint64_t end_index) const
-  {
-    m_blockchain_storage.print_blockchain(start_index, end_index);
-  }
-  //-----------------------------------------------------------------------------------------------
-  void core::print_blockchain_index() const
-  {
-    m_blockchain_storage.print_blockchain_index();
-  }
-  //-----------------------------------------------------------------------------------------------
-  void core::print_blockchain_outs(const std::string& file)
-  {
-    m_blockchain_storage.print_blockchain_outs(file);
   }
   //-----------------------------------------------------------------------------------------------
   bool core::get_random_outs_for_amounts(const COMMAND_RPC_GET_RANDOM_OUTPUTS_FOR_AMOUNTS::request& req, COMMAND_RPC_GET_RANDOM_OUTPUTS_FOR_AMOUNTS::response& res) const
@@ -1289,7 +1267,7 @@ namespace cryptonote
   bool core::get_pool_transaction(const crypto::hash &id, cryptonote::blobdata& tx) const
   {
     return m_mempool.get_transaction(id, tx);
-  }  
+  }
   //-----------------------------------------------------------------------------------------------
   bool core::pool_has_tx(const crypto::hash &id) const
   {
@@ -1421,7 +1399,7 @@ namespace cryptonote
     if (!tools::check_updates(software, buildtag, version, hash))
       return false;
 
-    if (tools::vercmp(version.c_str(), MONERO_VERSION) <= 0)
+    if (tools::vercmp(version.c_str(), HAVEN_VERSION) <= 0)
       return true;
 
     std::string url = tools::get_update_url(software, subdir, buildtag, version, true);
@@ -1452,27 +1430,56 @@ namespace cryptonote
     if (!tools::sha256sum(path.string(), file_hash) || (hash != epee::string_tools::pod_to_hex(file_hash)))
     {
       MCDEBUG("updates", "We don't have that file already, downloading");
+      const std::string tmppath = path.string() + ".tmp";
+      if (epee::file_io_utils::is_file_exist(tmppath))
+      {
+        MCDEBUG("updates", "We have part of the file already, resuming download");
+      }
       m_last_update_length = 0;
-      m_update_download = tools::download_async(path.string(), url, [this, hash](const std::string &path, const std::string &uri, bool success) {
+      m_update_download = tools::download_async(tmppath, url, [this, hash, path](const std::string &tmppath, const std::string &uri, bool success) {
+        bool remove = false, good = true;
         if (success)
         {
           crypto::hash file_hash;
-          if (!tools::sha256sum(path, file_hash))
+          if (!tools::sha256sum(tmppath, file_hash))
           {
-            MCERROR("updates", "Failed to hash " << path);
+            MCERROR("updates", "Failed to hash " << tmppath);
+            remove = true;
+            good = false;
           }
-          if (hash != epee::string_tools::pod_to_hex(file_hash))
+          else if (hash != epee::string_tools::pod_to_hex(file_hash))
           {
             MCERROR("updates", "Download from " << uri << " does not match the expected hash");
+            remove = true;
+            good = false;
           }
-          MCLOG_CYAN(el::Level::Info, "updates", "New version downloaded to " << path);
         }
         else
         {
           MCERROR("updates", "Failed to download " << uri);
+          good = false;
         }
         boost::unique_lock<boost::mutex> lock(m_update_mutex);
         m_update_download = 0;
+        if (success && !remove)
+        {
+          std::error_code e = tools::replace_file(tmppath, path.string());
+          if (e)
+          {
+            MCERROR("updates", "Failed to rename downloaded file");
+            good = false;
+          }
+        }
+        else if (remove)
+        {
+          if (!boost::filesystem::remove(tmppath))
+          {
+            MCERROR("updates", "Failed to remove invalid downloaded file");
+            good = false;
+          }
+        }
+        if (good)
+          MCLOG_CYAN(el::Level::Info, "updates", "New version downloaded to " << path.string());
       }, [this](const std::string &path, const std::string &uri, size_t length, ssize_t content_length) {
         if (length >= m_last_update_length + 1024 * 1024 * 10)
         {

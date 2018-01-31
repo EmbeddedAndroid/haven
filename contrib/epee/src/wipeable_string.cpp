@@ -85,25 +85,29 @@ void wipeable_string::wipe()
 void wipeable_string::grow(size_t sz, size_t reserved)
 {
   CHECK_AND_ASSERT_THROW_MES(wipefunc, "wipefunc is not set");
-  if (reserved == 0)
+  if (reserved < sz)
     reserved = sz;
-  CHECK_AND_ASSERT_THROW_MES(reserved >= sz, "reserved < sz");
   if (reserved <= buffer.capacity())
+  {
+    if (sz < buffer.size())
+      wipefunc(buffer.data() + sz, buffer.size() - sz);
+    buffer.resize(sz);
     return;
+  }
   size_t old_sz = buffer.size();
   std::unique_ptr<char[]> tmp{new char[old_sz]};
   memcpy(tmp.get(), buffer.data(), old_sz * sizeof(char));
   wipefunc(buffer.data(), old_sz * sizeof(char));
   buffer.reserve(reserved);
   buffer.resize(sz);
-  memcpy(buffer.data(), tmp.get(), sz * sizeof(char));
+  memcpy(buffer.data(), tmp.get(), old_sz * sizeof(char));
   wipefunc(tmp.get(), old_sz * sizeof(char));
 }
 
 void wipeable_string::push_back(char c)
 {
   grow(size() + 1);
-  buffer.push_back(c);
+  buffer.back() = c;
 }
 
 void wipeable_string::pop_back()
@@ -113,9 +117,6 @@ void wipeable_string::pop_back()
 
 void wipeable_string::resize(size_t sz)
 {
-  CHECK_AND_ASSERT_THROW_MES(wipefunc, "wipefunc is not set");
-  if (sz < buffer.size())
-    wipefunc(buffer.data() + sz, buffer.size() - sz);
   grow(sz);
 }
 

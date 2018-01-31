@@ -680,32 +680,6 @@ namespace cryptonote
     //debug functions
 
     /**
-     * @brief prints data about a snippet of the blockchain
-     *
-     * if start_index is greater than the blockchain height, do nothing
-     *
-     * @param start_index height on chain to start at
-     * @param end_index height on chain to end at
-     */
-    void print_blockchain(uint64_t start_index, uint64_t end_index) const;
-
-    /**
-     * @brief prints every block's hash
-     *
-     * WARNING: This function will absolutely crush a terminal in prints, so
-     * it is recommended to redirect this output to a log file (or null sink
-     * if a log file is already set up, as should be the default)
-     */
-    void print_blockchain_index() const;
-
-    /**
-     * @brief currently does nothing, candidate for removal
-     *
-     * @param file
-     */
-    void print_blockchain_outs(const std::string& file) const;
-
-    /**
      * @brief check the blockchain against a set of checkpoints
      *
      * If a block fails a checkpoint and enforce is enabled, the blockchain
@@ -940,7 +914,7 @@ namespace cryptonote
     void update_txpool_tx(const crypto::hash &txid, const txpool_tx_meta_t &meta);
     void remove_txpool_tx(const crypto::hash &txid);
     uint64_t get_txpool_tx_count(bool include_unrelayed_txes = true) const;
-    txpool_tx_meta_t get_txpool_tx_meta(const crypto::hash& txid) const;
+    bool get_txpool_tx_meta(const crypto::hash& txid, txpool_tx_meta_t &meta) const;
     bool get_txpool_tx_blob(const crypto::hash& txid, cryptonote::blobdata &bd) const;
     cryptonote::blobdata get_txpool_tx_blob(const crypto::hash& txid) const;
     bool for_all_txpool_txes(std::function<bool(const crypto::hash&, const txpool_tx_meta_t&, const cryptonote::blobdata*)>, bool include_blob = false, bool include_unrelayed_txes = true) const;

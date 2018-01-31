@@ -1,21 +1,23 @@
-// Copyright (c) 2014-2017, The Monero Project
-// 
+// Copyright (c) 2017-2018, Haven Protocol
+//
+// Portions Copyright (c) 2014-2017 The Monero Project.
+//
 // All rights reserved.
-// 
+//
 // Redistribution and use in source and binary forms, with or without modification, are
 // permitted provided that the following conditions are met:
-// 
+//
 // 1. Redistributions of source code must retain the above copyright notice, this list of
 //    conditions and the following disclaimer.
-// 
+//
 // 2. Redistributions in binary form must reproduce the above copyright notice, this list
 //    of conditions and the following disclaimer in the documentation and/or other
 //    materials provided with the distribution.
-// 
+//
 // 3. Neither the name of the copyright holder nor the names of its contributors may be
 //    used to endorse or promote products derived from this software without specific
 //    prior written permission.
-// 
+//
 // THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY
 // EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
 // MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL
@@ -25,7 +27,7 @@
 // INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
 // STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF
 // THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-// 
+//
 // Parts of this file are originally copyright (c) 2012-2013 The Cryptonote developers
 
 #pragma once
@@ -49,7 +51,7 @@
 #include "cryptonote_basic/cryptonote_format_utils.h"
 #include "cryptonote_core/cryptonote_tx_utils.h"
 #include "common/unordered_containers_boost_serialization.h"
-#include "crypto/chacha8.h"
+#include "crypto/chacha.h"
 #include "crypto/hash.h"
 #include "ringct/rctTypes.h"
 #include "ringct/rctOps.h"
@@ -404,7 +406,7 @@ namespace tools
 
     struct keys_file_data
     {
-      crypto::chacha8_iv iv;
+      crypto::chacha_iv iv;
       std::string account_data;
 
       BEGIN_SERIALIZE_OBJECT()
@@ -415,7 +417,7 @@ namespace tools
 
     struct cache_file_data
     {
-      crypto::chacha8_iv iv;
+      crypto::chacha_iv iv;
       std::string cache_data;
 
       BEGIN_SERIALIZE_OBJECT()
@@ -423,17 +425,26 @@ namespace tools
         FIELD(cache_data)
       END_SERIALIZE()
     };
-    
+
     // GUI Address book
     struct address_book_row
     {
       cryptonote::account_public_address m_address;
       crypto::hash m_payment_id;
-      std::string m_description;   
+      std::string m_description;
       bool m_is_subaddress;
     };
 
     typedef std::tuple<uint64_t, crypto::public_key, rct::key> get_outs_entry;
+
+    /*!
+     * \brief  Generates a wallet or restores one.
+     * \param  wallet_        Name of wallet file
+     * \param  password       Password of wallet file
+     * \param  multisig_data  The multisig restore info and keys
+     */
+    void generate(const std::string& wallet_, const epee::wipeable_string& password,
+      const std::string& multisig_data);
 
     /*!
      * \brief Generates a wallet or restores one.
@@ -541,7 +552,7 @@ namespace tools
     void set_refresh_from_block_height(uint64_t height) {m_refresh_from_block_height = height;}
     uint64_t get_refresh_from_block_height() const {return m_refresh_from_block_height;}
 
-    // upper_transaction_size_limit as defined below is set to 
+    // upper_transaction_size_limit as defined below is set to
     // approximately 125% of the fixed minimum allowable penalty
     // free block size. TODO: fix this so that it actually takes
     // into account the current median block size rather than
@@ -610,6 +621,7 @@ namespace tools
     bool watch_only() const { return m_watch_only; }
     bool multisig(bool *ready = NULL, uint32_t *threshold = NULL, uint32_t *total = NULL) const;
     bool has_multisig_partial_key_images() const;
+    bool get_multisig_seed(std::string& seed, const epee::wipeable_string &passphrase = std::string(), bool raw = true) const;
 
     // locked & unlocked balance of given or current subaddress account
     uint64_t balance(uint32_t subaddr_index_major) const;
@@ -645,7 +657,7 @@ namespace tools
     bool sign_tx(const std::string &unsigned_filename, const std::string &signed_filename, std::vector<wallet2::pending_tx> &ptx, std::function<bool(const unsigned_tx_set&)> accept_func = NULL, bool export_raw = false);
     // sign unsigned tx. Takes unsigned_tx_set as argument. Used by GUI
     bool sign_tx(unsigned_tx_set &exported_txs, const std::string &signed_filename, std::vector<wallet2::pending_tx> &ptx, bool export_raw = false);
-    // load unsigned_tx_set from file. 
+    // load unsigned_tx_set from file.
     bool load_unsigned_tx(const std::string &unsigned_filename, unsigned_tx_set &exported_txs);
     bool load_tx(const std::string &signed_filename, std::vector<tools::wallet2::pending_tx> &ptx, std::function<bool(const signed_tx_set&)> accept_func = NULL);
     std::vector<pending_tx> create_transactions(std::vector<cryptonote::tx_destination_entry> dsts, const size_t fake_outs_count, const uint64_t unlock_time, uint32_t priority, const std::vector<uint8_t>& extra, bool trusted_daemon);
@@ -767,6 +779,9 @@ namespace tools
       if(ver < 22)
         return;
       a & m_unconfirmed_payments;
+      if(ver < 23)
+        return;
+      a & m_account_tags;
     }
 
     /*!
@@ -829,7 +844,7 @@ namespace tools
     std::vector<address_book_row> get_address_book() const { return m_address_book; }
     bool add_address_book_row(const cryptonote::account_public_address &address, const crypto::hash &payment_id, const std::string &description, bool is_subaddress);
     bool delete_address_book_row(std::size_t row_id);
-        
+
     uint64_t get_num_rct_outputs();
     size_t get_num_transfer_details() const { return m_transfers.size(); }
     const transfer_details &get_transfer_details(size_t idx) const;
@@ -862,6 +877,24 @@ namespace tools
 
     void set_description(const std::string &description);
     std::string get_description() const;
+
+    /*!
+     * \brief  Get the list of registered account tags.
+     * \return first.Key=(tag's name), first.Value=(tag's label), second[i]=(i-th account's tag)
+     */
+    const std::pair<std::map<std::string, std::string>, std::vector<std::string>>& get_account_tags();
+    /*!
+     * \brief  Set a tag to the given accounts.
+     * \param  account_indices  Indices of accounts.
+     * \param  tag              Tag's name. If empty, the accounts become untagged.
+     */
+    void set_account_tag(const std::set<uint32_t> account_indices, const std::string& tag);
+    /*!
+     * \brief  Set the label of the given tag.
+     * \param  tag            Tag's name (which must be non-empty).
+     * \param  label          Tag's description.
+     */
+    void set_account_tag_description(const std::string& tag, const std::string& description);
 
     std::string sign(const std::string &data) const;
     bool verify(const std::string &data, const cryptonote::account_public_address &address, const std::string &signature) const;
@@ -975,7 +1008,7 @@ namespace tools
     void add_unconfirmed_tx(const cryptonote::transaction& tx, uint64_t amount_in, const std::vector<cryptonote::tx_destination_entry> &dests, const crypto::hash &payment_id, uint64_t change_amount, uint32_t subaddr_account, const std::set<uint32_t>& subaddr_indices);
     void generate_genesis(cryptonote::block& b);
     void check_genesis(const crypto::hash& genesis_hash) const; //throws
-    bool generate_chacha8_key_from_secret_keys(crypto::chacha8_key &key) const;
+    bool generate_chacha_key_from_secret_keys(crypto::chacha_key &key) const;
     crypto::hash get_payment_id(const pending_tx &ptx) const;
     void check_acc_out_precomp(const cryptonote::tx_out &o, const crypto::key_derivation &derivation, const std::vector<crypto::key_derivation> &additional_derivations, size_t i, tx_scan_info_t &tx_scan_info) const;
     void parse_block_round(const cryptonote::blobdata &blob, cryptonote::block &bl, crypto::hash &bl_id, bool &error) const;
@@ -1025,6 +1058,7 @@ namespace tools
     std::unordered_map<crypto::hash, std::string> m_tx_notes;
     std::unordered_map<std::string, std::string> m_attributes;
     std::vector<tools::wallet2::address_book_row> m_address_book;
+    std::pair<std::map<std::string, std::string>, std::vector<std::string>> m_account_tags;
     uint64_t m_upper_transaction_size_limit; //TODO: auto-calc this value or request from daemon, now use some fixed value
     const std::vector<std::vector<tools::wallet2::multisig_info>> *m_multisig_rescan_info;
     const std::vector<std::vector<rct::key>> *m_multisig_rescan_k;
@@ -1077,7 +1111,7 @@ namespace tools
     std::unordered_map<crypto::public_key, std::map<uint64_t, crypto::key_image> > m_key_image_cache;
   };
 }
-BOOST_CLASS_VERSION(tools::wallet2, 22)
+BOOST_CLASS_VERSION(tools::wallet2, 23)
 BOOST_CLASS_VERSION(tools::wallet2::transfer_details, 9)
 BOOST_CLASS_VERSION(tools::wallet2::multisig_info, 1)
 BOOST_CLASS_VERSION(tools::wallet2::multisig_info::LR, 0)
@@ -1113,10 +1147,10 @@ namespace boost
         {
           x.m_spent_height = 0;
         }
-        if (ver < 4)
-        {
-          x.m_rct = x.m_tx.vout[x.m_internal_output_index].amount == 0;
-        }
+        // if (ver < 4)
+        // {
+        //   x.m_rct = x.m_tx.vout[x.m_internal_output_index].amount == 0;
+        // }
         if (ver < 6)
         {
           x.m_key_image_known = true;
@@ -1181,7 +1215,7 @@ namespace boost
         initialize_transfer_details(a, x, ver);
         return;
       }
-      a & x.m_rct;
+      // a & x.m_rct;
       if (ver < 5)
       {
         initialize_transfer_details(a, x, ver);
@@ -1675,9 +1709,9 @@ namespace tools
       return true;
     });
     THROW_WALLET_EXCEPTION_IF(!all_are_txin_to_key, error::unexpected_txin_type, tx);
-    
+
     bool dust_sent_elsewhere = (dust_policy.addr_for_dust.m_view_public_key != change_dts.addr.m_view_public_key
-                                || dust_policy.addr_for_dust.m_spend_public_key != change_dts.addr.m_spend_public_key);      
+                                || dust_policy.addr_for_dust.m_spend_public_key != change_dts.addr.m_spend_public_key);
 
     if (dust_policy.add_to_fee || dust_sent_elsewhere) change_dts.amount -= dust;
 

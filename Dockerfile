@@ -21,8 +21,10 @@ RUN apt-get update && \
 
 WORKDIR /src
 COPY . .
+
+ARG NPROC
 RUN rm -rf build && \
-    make -j$(nproc) release-static
+    if [ -z "$NPROC" ];then make -j$(nproc) release-static;else make -j$NPROC release-static;fi
 
 # runtime stage
 FROM ubuntu:16.04
@@ -39,10 +41,10 @@ VOLUME /root/.bitmonero
 
 # Generate your wallet via accessing the container and run:
 # cd /wallet
-# monero-wallet-cli
+# haven-wallet-cli
 VOLUME /wallet
 
 EXPOSE 18080
 EXPOSE 18081
 
-ENTRYPOINT ["monerod", "--p2p-bind-ip=0.0.0.0", "--p2p-bind-port=18080", "--rpc-bind-ip=127.0.0.1", "--rpc-bind-port=18081", "--non-interactive"] 
+ENTRYPOINT ["monerod", "--p2p-bind-ip=0.0.0.0", "--p2p-bind-port=18080", "--rpc-bind-ip=0.0.0.0", "--rpc-bind-port=18081", "--non-interactive", "--confirm-external-bind"] 

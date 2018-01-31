@@ -1,21 +1,23 @@
-// Copyright (c) 2014-2017, The Monero Project
-// 
+// Copyright (c) 2017-2018, Haven Protocol
+//
+// Portions Copyright (c) 2014-2017 The Monero Project.
+//
 // All rights reserved.
-// 
+//
 // Redistribution and use in source and binary forms, with or without modification, are
 // permitted provided that the following conditions are met:
-// 
+//
 // 1. Redistributions of source code must retain the above copyright notice, this list of
 //    conditions and the following disclaimer.
-// 
+//
 // 2. Redistributions in binary form must reproduce the above copyright notice, this list
 //    of conditions and the following disclaimer in the documentation and/or other
 //    materials provided with the distribution.
-// 
+//
 // 3. Neither the name of the copyright holder nor the names of its contributors may be
 //    used to endorse or promote products derived from this software without specific
 //    prior written permission.
-// 
+//
 // THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY
 // EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
 // MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL
@@ -25,7 +27,7 @@
 // INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
 // STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF
 // THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-// 
+//
 // Parts of this file are originally copyright (c) 2012-2013 The Cryptonote developers
 
 #pragma once
@@ -178,7 +180,10 @@ namespace wallet_rpc
   {
     struct request
     {
+      std::string tag;      // all accounts if empty, otherwise those accounts with this tag
+
       BEGIN_KV_SERIALIZE_MAP()
+        KV_SERIALIZE(tag)
       END_KV_SERIALIZE_MAP()
     };
 
@@ -189,6 +194,7 @@ namespace wallet_rpc
       uint64_t balance;
       uint64_t unlocked_balance;
       std::string label;
+      std::string tag;
 
       BEGIN_KV_SERIALIZE_MAP()
         KV_SERIALIZE(account_index)
@@ -196,6 +202,7 @@ namespace wallet_rpc
         KV_SERIALIZE(balance)
         KV_SERIALIZE(unlocked_balance)
         KV_SERIALIZE(label)
+        KV_SERIALIZE(tag)
       END_KV_SERIALIZE_MAP()
     };
 
@@ -244,6 +251,95 @@ namespace wallet_rpc
       BEGIN_KV_SERIALIZE_MAP()
         KV_SERIALIZE(account_index)
         KV_SERIALIZE(label)
+      END_KV_SERIALIZE_MAP()
+    };
+
+    struct response
+    {
+      BEGIN_KV_SERIALIZE_MAP()
+      END_KV_SERIALIZE_MAP()
+    };
+  };
+
+  struct COMMAND_RPC_GET_ACCOUNT_TAGS
+  {
+    struct request
+    {
+      BEGIN_KV_SERIALIZE_MAP()
+      END_KV_SERIALIZE_MAP()
+    };
+
+    struct account_tag_info
+    {
+      std::string tag;
+      std::string label;
+      std::vector<uint32_t> accounts;
+
+      BEGIN_KV_SERIALIZE_MAP()
+        KV_SERIALIZE(tag);
+        KV_SERIALIZE(label);
+        KV_SERIALIZE(accounts);
+      END_KV_SERIALIZE_MAP()
+    };
+
+    struct response
+    {
+      std::vector<account_tag_info> account_tags;
+
+      BEGIN_KV_SERIALIZE_MAP()
+        KV_SERIALIZE(account_tags)
+      END_KV_SERIALIZE_MAP()
+    };
+  };
+
+  struct COMMAND_RPC_TAG_ACCOUNTS
+  {
+    struct request
+    {
+      std::string tag;
+      std::set<uint32_t> accounts;
+
+      BEGIN_KV_SERIALIZE_MAP()
+        KV_SERIALIZE(tag)
+        KV_SERIALIZE(accounts)
+      END_KV_SERIALIZE_MAP()
+    };
+
+    struct response
+    {
+      BEGIN_KV_SERIALIZE_MAP()
+      END_KV_SERIALIZE_MAP()
+    };
+  };
+
+  struct COMMAND_RPC_UNTAG_ACCOUNTS
+  {
+    struct request
+    {
+      std::set<uint32_t> accounts;
+
+      BEGIN_KV_SERIALIZE_MAP()
+        KV_SERIALIZE(accounts)
+      END_KV_SERIALIZE_MAP()
+    };
+
+    struct response
+    {
+      BEGIN_KV_SERIALIZE_MAP()
+      END_KV_SERIALIZE_MAP()
+    };
+  };
+
+  struct COMMAND_RPC_SET_ACCOUNT_TAG_DESCRIPTION
+  {
+    struct request
+    {
+      std::string tag;
+      std::string description;
+
+      BEGIN_KV_SERIALIZE_MAP()
+        KV_SERIALIZE(tag)
+        KV_SERIALIZE(description)
       END_KV_SERIALIZE_MAP()
     };
 
@@ -317,6 +413,7 @@ namespace wallet_rpc
       std::string tx_hash;
       std::string tx_key;
       std::list<std::string> amount_keys;
+      uint64_t amount;
       uint64_t fee;
       std::string tx_blob;
       std::string tx_metadata;
@@ -326,6 +423,7 @@ namespace wallet_rpc
         KV_SERIALIZE(tx_hash)
         KV_SERIALIZE(tx_key)
         KV_SERIALIZE(amount_keys)
+        KV_SERIALIZE(amount)
         KV_SERIALIZE(fee)
         KV_SERIALIZE(tx_blob)
         KV_SERIALIZE(tx_metadata)
@@ -426,14 +524,16 @@ namespace wallet_rpc
     {
       std::list<std::string> tx_hash_list;
       std::list<std::string> tx_key_list;
+      std::list<uint64_t> amount_list;
       std::list<uint64_t> fee_list;
       std::list<std::string> tx_blob_list;
       std::list<std::string> tx_metadata_list;
-      std::list<std::string> multisig_txset;
+      std::string multisig_txset;
 
       BEGIN_KV_SERIALIZE_MAP()
         KV_SERIALIZE(tx_hash_list)
         KV_SERIALIZE(tx_key_list)
+        KV_SERIALIZE(amount_list)
         KV_SERIALIZE(fee_list)
         KV_SERIALIZE(tx_blob_list)
         KV_SERIALIZE(tx_metadata_list)
@@ -488,14 +588,16 @@ namespace wallet_rpc
     {
       std::list<std::string> tx_hash_list;
       std::list<std::string> tx_key_list;
+      std::list<uint64_t> amount_list;
       std::list<uint64_t> fee_list;
       std::list<std::string> tx_blob_list;
       std::list<std::string> tx_metadata_list;
-      std::list<std::string> multisig_txset;
+      std::string multisig_txset;
 
       BEGIN_KV_SERIALIZE_MAP()
         KV_SERIALIZE(tx_hash_list)
         KV_SERIALIZE(tx_key_list)
+        KV_SERIALIZE(amount_list)
         KV_SERIALIZE(fee_list)
         KV_SERIALIZE(tx_blob_list)
         KV_SERIALIZE(tx_metadata_list)
@@ -537,6 +639,7 @@ namespace wallet_rpc
     {
       std::string tx_hash;
       std::string tx_key;
+      uint64_t amount;
       uint64_t fee;
       std::string tx_blob;
       std::string tx_metadata;
@@ -545,6 +648,7 @@ namespace wallet_rpc
       BEGIN_KV_SERIALIZE_MAP()
         KV_SERIALIZE(tx_hash)
         KV_SERIALIZE(tx_key)
+        KV_SERIALIZE(amount)
         KV_SERIALIZE(fee)
         KV_SERIALIZE(tx_blob)
         KV_SERIALIZE(tx_metadata)
@@ -659,7 +763,7 @@ namespace wallet_rpc
       END_KV_SERIALIZE_MAP()
     };
   };
-  
+
   struct transfer_details
   {
     uint64_t amount;
@@ -1418,8 +1522,8 @@ namespace wallet_rpc
 
       BEGIN_KV_SERIALIZE_MAP()
         KV_SERIALIZE(threads_count)
-        KV_SERIALIZE(do_background_mining)        
-        KV_SERIALIZE(ignore_battery)        
+        KV_SERIALIZE(do_background_mining)
+        KV_SERIALIZE(ignore_battery)
       END_KV_SERIALIZE_MAP()
     };
 

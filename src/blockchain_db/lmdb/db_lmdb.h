@@ -1,4 +1,7 @@
-// Copyright (c) 2014-2017, The Monero Project
+// Copyright (c) 2017-2018, Haven Protocol
+//
+// Portions Copyright (c) 2014-2017 The Monero Project.
+//
 // All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without modification, are
@@ -246,7 +249,7 @@ public:
   virtual uint64_t get_txpool_tx_count(bool include_unrelayed_txes = true) const;
   virtual bool txpool_has_tx(const crypto::hash &txid) const;
   virtual void remove_txpool_tx(const crypto::hash& txid);
-  virtual txpool_tx_meta_t get_txpool_tx_meta(const crypto::hash& txid) const;
+  virtual bool get_txpool_tx_meta(const crypto::hash& txid, txpool_tx_meta_t &meta) const;
   virtual bool get_txpool_tx_blob(const crypto::hash& txid, cryptonote::blobdata &bd) const;
   virtual cryptonote::blobdata get_txpool_tx_blob(const crypto::hash& txid) const;
   virtual bool for_all_txpool_txes(std::function<bool(const crypto::hash&, const txpool_tx_meta_t&, const cryptonote::blobdata*)> f, bool include_blob = false, bool include_unrelayed_txes = true) const;
@@ -358,9 +361,6 @@ private:
   void check_open() const;
 
   virtual bool is_read_only() const;
-
-  // fix up anything that may be wrong due to past bugs
-  virtual void fixup();
 
   // migrate from older DB version to current
   void migrate(const uint32_t oldversion);

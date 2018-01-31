@@ -38,7 +38,6 @@
 #include "cryptonote_basic/cryptonote_basic.h"
 #include "cryptonote_basic/cryptonote_basic_impl.h"
 #include "ringct/rctSigs.h"
-#include "serialization/serialization.h"
 #include "serialization/binary_archive.h"
 #include "serialization/json_archive.h"
 #include "serialization/debug_archive.h"
@@ -802,12 +801,12 @@ TEST(Serialization, portability_outputs)
   // decrypt (copied from wallet2::decrypt)
   auto decrypt = [] (const std::string &ciphertext, const crypto::secret_key &skey, bool authenticated) -> string
   {
-    const size_t prefix_size = sizeof(chacha8_iv) + (authenticated ? sizeof(crypto::signature) : 0);
+    const size_t prefix_size = sizeof(chacha_iv) + (authenticated ? sizeof(crypto::signature) : 0);
     if(ciphertext.size() < prefix_size)
       return {};
-    crypto::chacha8_key key;
-    crypto::generate_chacha8_key(&skey, sizeof(skey), key);
-    const crypto::chacha8_iv &iv = *(const crypto::chacha8_iv*)&ciphertext[0];
+    crypto::chacha_key key;
+    crypto::generate_chacha_key(&skey, sizeof(skey), key);
+    const crypto::chacha_iv &iv = *(const crypto::chacha_iv*)&ciphertext[0];
     std::string plaintext;
     plaintext.resize(ciphertext.size() - prefix_size);
     if (authenticated)

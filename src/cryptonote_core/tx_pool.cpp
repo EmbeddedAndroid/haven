@@ -371,7 +371,12 @@ namespace cryptonote
     try
     {
       LockedTXN lock(m_blockchain);
-      txpool_tx_meta_t meta = m_blockchain.get_txpool_tx_meta(id);
+      txpool_tx_meta_t meta;
+      if (!m_blockchain.get_txpool_tx_meta(id, meta))
+      {
+        MERROR("Failed to find tx in txpool");
+        return false;
+      }
       cryptonote::blobdata txblob = m_blockchain.get_txpool_tx_blob(id);
       if (!parse_and_validate_tx_from_blob(txblob, tx))
       {
@@ -514,10 +519,13 @@ namespace cryptonote
     {
       try
       {
-        txpool_tx_meta_t meta = m_blockchain.get_txpool_tx_meta(it->first);
-        meta.relayed = true;
-        meta.last_relayed_time = now;
-        m_blockchain.update_txpool_tx(it->first, meta);
+        txpool_tx_meta_t meta;
+        if (m_blockchain.get_txpool_tx_meta(it->first, meta))
+        {
+          meta.relayed = true;
+          meta.last_relayed_time = now;
+          m_blockchain.update_txpool_tx(it->first, meta);
+        }
       }
       catch (const std::exception &e)
       {
@@ -696,7 +704,11 @@ namespace cryptonote
         {
           try
           {
-            meta = m_blockchain.get_txpool_tx_meta(tx_id_hash);
+            if (!m_blockchain.get_txpool_tx_meta(tx_id_hash, meta))
+            {
+              MERROR("Failed to get tx meta from txpool");
+              return false;
+            }
             if (!meta.relayed)
               // Do not include that transaction if in restricted mode and it's not relayed
               continue;
@@ -918,7 +930,13 @@ namespace cryptonote
       {
         for (const crypto::hash &txid: it->second)
         {
-          txpool_tx_meta_t meta = m_blockchain.get_txpool_tx_meta(txid);
+          txpool_tx_meta_t meta;
+          if (!m_blockchain.get_txpool_tx_meta(txid, meta))
+          {
+            MERROR("Failed to find tx meta in txpool");
+            // continue, not fatal
+            continue;
+          }
           if (!meta.double_spend_seen)
           {
             MDEBUG("Marking " << txid << " as double spending " << itk.k_image);
@@ -981,14 +999,11 @@ namespace cryptonote
     uint64_t best_coinbase = 0, coinbase = 0;
     total_size = 0;
     fee = 0;
-    
+
     //baseline empty block
     get_block_reward(median_size, total_size, already_generated_coins, best_coinbase, version);
 
-
-    size_t max_total_size_pre_v5 = (130 * median_size) / 100 - CRYPTONOTE_COINBASE_BLOB_RESERVED_SIZE;
-    size_t max_total_size_v5 = 2 * median_size - CRYPTONOTE_COINBASE_BLOB_RESERVED_SIZE;
-    size_t max_total_size = version >= 5 ? max_total_size_v5 : max_total_size_pre_v5;
+    size_t max_total_size = 2 * median_size - CRYPTONOTE_COINBASE_BLOB_RESERVED_SIZE;
     std::unordered_set<crypto::key_image> k_images;
 
     LOG_PRINT_L2("Filling block template, median size " << median_size << ", " << m_txs_by_fee_and_receive_time.size() << " txes in the pool");
@@ -998,7 +1013,12 @@ namespace cryptonote
     auto sorted_it = m_txs_by_fee_and_receive_time.begin();
     while (sorted_it != m_txs_by_fee_and_receive_time.end())
     {
-      txpool_tx_meta_t meta = m_blockchain.get_txpool_tx_meta(sorted_it->second);
+      txpool_tx_meta_t meta;
+      if (!m_blockchain.get_txpool_tx_meta(sorted_it->second, meta))
+      {
+        MERROR("  failed to find tx meta");
+        continue;
+      }
       LOG_PRINT_L2("Considering " << sorted_it->second << ", size " << meta.blob_size << ", current block size " << total_size << "/" << max_total_size << ", current coinbase " << print_money(best_coinbase));
 
       // Can not exceed maximum block size
@@ -1009,36 +1029,25 @@ namespace cryptonote
         continue;
       }
 
-      // start using the optimal filling algorithm from v5
-      if (version >= 5)
+      // start using the optimal filling algorithm from version 1
+
+      // If we're getting lower coinbase tx,
+      // stop including more tx
+      uint64_t block_reward;
+      if(!get_block_reward(median_size, total_size + meta.blob_size, already_generated_coins, block_reward, version))
       {
-        // If we're getting lower coinbase tx,
-        // stop including more tx
-        uint64_t block_reward;
-        if(!get_block_reward(median_size, total_size + meta.blob_size, already_generated_coins, block_reward, version))
-        {
-          LOG_PRINT_L2("  would exceed maximum block size");
-          sorted_it++;
-          continue;
-        }
-        coinbase = block_reward + fee + meta.fee;
-        if (coinbase < template_accept_threshold(best_coinbase))
-        {
-          LOG_PRINT_L2("  would decrease coinbase to " << print_money(coinbase));
-          sorted_it++;
-          continue;
-        }
+        LOG_PRINT_L2("  would exceed maximum block size");
+        sorted_it++;
+        continue;
       }
-      else
+      coinbase = block_reward + fee + meta.fee;
+      if (coinbase < template_accept_threshold(best_coinbase))
       {
-        // If we've exceeded the penalty free size,
-        // stop including more tx
-        if (total_size > median_size)
-        {
-          LOG_PRINT_L2("  would exceed median block size");
-          break;
-        }
+        LOG_PRINT_L2("  would decrease coinbase to " << print_money(coinbase));
+        sorted_it++;
+        continue;
       }
+
 
       cryptonote::blobdata txblob = m_blockchain.get_txpool_tx_blob(sorted_it->second);
       cryptonote::transaction tx;

@@ -1,4 +1,6 @@
-// Copyright (c) 2014-2017, The Monero Project
+// Copyright (c) 2017-2018, Haven Protocol
+//
+// Portions Copyright (c) 2014-2017 The Monero Project.
 //
 // All rights reserved.
 //
@@ -459,7 +461,7 @@ int import_from_file(cryptonote::core& core, const std::string& import_file_path
 
           // tx number 1: coinbase tx
           // tx number 2 onwards: archived_txs
-          for (transaction tx : archived_txs)
+          for (const transaction &tx : archived_txs)
           {
             // add blocks with verification.
             // for Blockchain and blockchain_storage add_new_block().
@@ -594,8 +596,8 @@ int main(int argc, char* argv[])
   const command_line::arg_descriptor<std::string> arg_database = {
     "database", available_dbs.c_str(), default_db_type
   };
-  const command_line::arg_descriptor<bool> arg_verify =  {"verify",
-    "Verify blocks and transactions during import", true};
+  const command_line::arg_descriptor<bool> arg_verify =  {"guard-against-pwnage",
+    "Verify blocks and transactions during import (only disable if you exported the file yourself)", true};
   const command_line::arg_descriptor<bool> arg_batch  =  {"batch",
     "Batch transactions for faster import", true};
   const command_line::arg_descriptor<bool> arg_resume =  {"resume",
@@ -642,7 +644,7 @@ int main(int argc, char* argv[])
 
   if (command_line::get_arg(vm, command_line::arg_help))
   {
-    std::cout << "Monero '" << MONERO_RELEASE_NAME << "' (v" << MONERO_VERSION_FULL << ")" << ENDL << ENDL;
+    std::cout << "Haven '" << HAVEN_RELEASE_NAME << "' (v" << HAVEN_VERSION_FULL << ")" << ENDL << ENDL;
     std::cout << desc_options << std::endl;
     return 1;
   }

@@ -1,4 +1,7 @@
-// Copyright (c) 2014-2017, The Monero Project
+// Copyright (c) 2017-2018, Haven Protocol
+//
+// Portions Copyright (c) 2014-2017 The Monero Project.
+//
 // All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without modification, are
@@ -1621,7 +1624,7 @@ void BlockchainLMDB::remove_txpool_tx(const crypto::hash& txid)
   }
 }
 
-txpool_tx_meta_t BlockchainLMDB::get_txpool_tx_meta(const crypto::hash& txid) const
+bool BlockchainLMDB::get_txpool_tx_meta(const crypto::hash& txid, txpool_tx_meta_t &meta) const
 {
   LOG_PRINT_L3("BlockchainLMDB::" << __func__);
   check_open();
@@ -1632,12 +1635,14 @@ txpool_tx_meta_t BlockchainLMDB::get_txpool_tx_meta(const crypto::hash& txid) co
   MDB_val k = {sizeof(txid), (void *)&txid};
   MDB_val v;
   auto result = mdb_cursor_get(m_cur_txpool_meta, &k, &v, MDB_SET);
+  if (result == MDB_NOTFOUND)
+      return false;
   if (result != 0)
       throw1(DB_ERROR(lmdb_error("Error finding txpool tx meta: ", result).c_str()));
 
-  const txpool_tx_meta_t meta = *(const txpool_tx_meta_t*)v.mv_data;
+  meta = *(const txpool_tx_meta_t*)v.mv_data;
   TXN_POSTFIX_RDONLY();
-  return meta;
+  return true;
 }
 
 bool BlockchainLMDB::get_txpool_tx_blob(const crypto::hash& txid, cryptonote::blobdata &bd) const
@@ -2623,6 +2628,12 @@ bool BlockchainLMDB::batch_start(uint64_t batch_num_blocks, uint64_t batch_bytes
 
   m_batch_active = true;
   memset(&m_wcursors, 0, sizeof(m_wcursors));
+  if (m_tinfo.get())
+  {
+    if (m_tinfo->m_ti_rflags.m_rf_txn)
+      mdb_txn_reset(m_tinfo->m_ti_rtxn);
+    memset(&m_tinfo->m_ti_rflags, 0, sizeof(m_tinfo->m_ti_rflags));
+  }
 
   LOG_PRINT_L3("batch transaction: begin");
   return true;
@@ -2732,29 +2743,34 @@ void BlockchainLMDB::set_batch_transactions(bool batch_transactions)
 bool BlockchainLMDB::block_rtxn_start(MDB_txn **mtxn, mdb_txn_cursors **mcur) const
 {
   bool ret = false;
+  mdb_threadinfo *tinfo;
   if (m_write_txn && m_writer == boost::this_thread::get_id()) {
     *mtxn = m_write_txn->m_txn;
     *mcur = (mdb_txn_cursors *)&m_wcursors;
     return ret;
   }
-  if (!m_tinfo.get())
+  /* Check for existing info and force reset if env doesn't match -
+   * only happens if env was opened/closed multiple times in same process
+   */
+  if (!(tinfo = m_tinfo.get()) || mdb_txn_env(tinfo->m_ti_rtxn) != m_env)
   {
-    m_tinfo.reset(new mdb_threadinfo);
-    memset(&m_tinfo->m_ti_rcursors, 0, sizeof(m_tinfo->m_ti_rcursors));
-    memset(&m_tinfo->m_ti_rflags, 0, sizeof(m_tinfo->m_ti_rflags));
-    if (auto mdb_res = lmdb_txn_begin(m_env, NULL, MDB_RDONLY, &m_tinfo->m_ti_rtxn))
+    tinfo = new mdb_threadinfo;
+    m_tinfo.reset(tinfo);
+    memset(&tinfo->m_ti_rcursors, 0, sizeof(tinfo->m_ti_rcursors));
+    memset(&tinfo->m_ti_rflags, 0, sizeof(tinfo->m_ti_rflags));
+    if (auto mdb_res = lmdb_txn_begin(m_env, NULL, MDB_RDONLY, &tinfo->m_ti_rtxn))
       throw0(DB_ERROR_TXN_START(lmdb_error("Failed to create a read transaction for the db: ", mdb_res).c_str()));
     ret = true;
-  } else if (!m_tinfo->m_ti_rflags.m_rf_txn)
+  } else if (!tinfo->m_ti_rflags.m_rf_txn)
   {
-    if (auto mdb_res = lmdb_txn_renew(m_tinfo->m_ti_rtxn))
+    if (auto mdb_res = lmdb_txn_renew(tinfo->m_ti_rtxn))
       throw0(DB_ERROR_TXN_START(lmdb_error("Failed to renew a read transaction for the db: ", mdb_res).c_str()));
     ret = true;
   }
   if (ret)
-    m_tinfo->m_ti_rflags.m_rf_txn = true;
-  *mtxn = m_tinfo->m_ti_rtxn;
-  *mcur = &m_tinfo->m_ti_rcursors;
+    tinfo->m_ti_rflags.m_rf_txn = true;
+  *mtxn = tinfo->m_ti_rtxn;
+  *mcur = &tinfo->m_ti_rcursors;
 
   if (ret)
     LOG_PRINT_L3("BlockchainLMDB::" << __func__);
@@ -2772,28 +2788,9 @@ void BlockchainLMDB::block_txn_start(bool readonly)
 {
   if (readonly)
   {
-    bool didit = false;
-    if (m_write_txn && m_writer == boost::this_thread::get_id())
-      return;
-    if (!m_tinfo.get())
-    {
-      m_tinfo.reset(new mdb_threadinfo);
-      memset(&m_tinfo->m_ti_rcursors, 0, sizeof(m_tinfo->m_ti_rcursors));
-      memset(&m_tinfo->m_ti_rflags, 0, sizeof(m_tinfo->m_ti_rflags));
-      if (auto mdb_res = lmdb_txn_begin(m_env, NULL, MDB_RDONLY, &m_tinfo->m_ti_rtxn))
-        throw0(DB_ERROR_TXN_START(lmdb_error("Failed to create a read transaction for the db: ", mdb_res).c_str()));
-      didit = true;
-    } else if (!m_tinfo->m_ti_rflags.m_rf_txn)
-    {
-      if (auto mdb_res = lmdb_txn_renew(m_tinfo->m_ti_rtxn))
-        throw0(DB_ERROR_TXN_START(lmdb_error("Failed to renew a read transaction for the db: ", mdb_res).c_str()));
-      didit = true;
-    }
-    if (didit)
-    {
-      m_tinfo->m_ti_rflags.m_rf_txn = true;
-      LOG_PRINT_L3("BlockchainLMDB::" << __func__ << " RO");
-    }
+    MDB_txn *mtxn;
+	mdb_txn_cursors *mcur;
+	block_rtxn_start(&mtxn, &mcur);
     return;
   }
 
@@ -2818,6 +2815,12 @@ void BlockchainLMDB::block_txn_start(bool readonly)
       throw0(DB_ERROR_TXN_START(lmdb_error("Failed to create a transaction for the db: ", mdb_res).c_str()));
     }
     memset(&m_wcursors, 0, sizeof(m_wcursors));
+    if (m_tinfo.get())
+    {
+      if (m_tinfo->m_ti_rflags.m_rf_txn)
+        mdb_txn_reset(m_tinfo->m_ti_rtxn);
+      memset(&m_tinfo->m_ti_rflags, 0, sizeof(m_tinfo->m_ti_rflags));
+    }
   } else if (m_writer != boost::this_thread::get_id())
     throw0(DB_ERROR_TXN_START((std::string("Attempted to start new write txn when batch txn already exists in ")+__FUNCTION__).c_str()));
 }
@@ -2894,7 +2897,7 @@ uint64_t BlockchainLMDB::add_block(const block& blk, const size_t& block_size, c
   {
     BlockchainDB::add_block(blk, block_size, cumulative_difficulty, coins_generated, txs);
   }
-  catch (DB_ERROR_TXN_START& e)
+  catch (const DB_ERROR_TXN_START& e)
   {
     throw;
   }
@@ -3195,13 +3198,6 @@ bool BlockchainLMDB::is_read_only() const
     return true;
 
   return false;
-}
-
-void BlockchainLMDB::fixup()
-{
-  LOG_PRINT_L3("BlockchainLMDB::" << __func__);
-  // Always call parent as well
-  BlockchainDB::fixup();
 }
 
 #define RENAME_DB(name) \

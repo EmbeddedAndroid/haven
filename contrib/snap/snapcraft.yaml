@@ -23,9 +23,9 @@ apps:
             - home
             - network
             - network-bind
-    monero-wallet-cli:
+    haven-wallet-cli:
         command: |
-          monero-wallet-cli --log-file ${SNAP_USER_DATA}
+          haven-wallet-cli --log-file ${SNAP_USER_DATA}
         plugs:
             - home
             - network

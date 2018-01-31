@@ -1,7 +1,12 @@
 #include "readline_buffer.h"
 #include <readline/readline.h>
 #include <readline/history.h>
+#ifdef _WIN32
+#define socklen_t int
+#else
 #include <sys/select.h>
+#endif
+
 #include <unistd.h>
 #include <iostream>
 #include <boost/thread.hpp>

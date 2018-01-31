@@ -1,17 +1,21 @@
 [Unit]
-Description=Monero Full Node
+Description=Haven Full Node
 After=network.target
 
 [Service]
-User=monero
-Group=monero
+User=haven
+Group=haven
 WorkingDirectory=~
+RuntimeDirectory=haven
 
 Type=forking
-PIDFile=/var/run/monerod.pid
+PIDFile=/run/haven/havend.pid
 
-ExecStart=/usr/bin/monerod --config-file /etc/monerod.conf \
-    --detach --pidfile /var/run/monerod.pid
+ExecStart=/usr/bin/havend --config-file /etc/havend.conf \
+    --detach --pidfile /run/haven/havend.pid
+
+Restart=always
+PrivateTmp=true
 
 [Install]
 WantedBy=multi-user.target

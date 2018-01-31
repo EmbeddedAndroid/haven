@@ -28,6 +28,7 @@
 // 
 // Parts of this file are originally copyright (c) 2012-2013 The Cryptonote developers
 
+#include "common/util.h"
 #include "performance_tests.h"
 #include "performance_utils.h"
 
@@ -43,11 +44,13 @@
 #include "generate_key_image_helper.h"
 #include "generate_keypair.h"
 #include "is_out_to_acc.h"
+#include "subaddress_expand.h"
 #include "sc_reduce32.h"
 #include "cn_fast_hash.h"
 
 int main(int argc, char** argv)
 {
+  tools::on_startup();
   set_process_affinity(1);
   set_thread_high_priority();
 
@@ -100,6 +103,7 @@ int main(int argc, char** argv)
   TEST_PERFORMANCE2(test_check_tx_signature, 100, true);
 
   TEST_PERFORMANCE0(test_is_out_to_acc);
+  TEST_PERFORMANCE0(test_is_out_to_acc_precomp);
   TEST_PERFORMANCE0(test_generate_key_image_helper);
   TEST_PERFORMANCE0(test_generate_key_derivation);
   TEST_PERFORMANCE0(test_generate_key_image);
@@ -108,6 +112,8 @@ int main(int argc, char** argv)
   TEST_PERFORMANCE0(test_ge_frombytes_vartime);
   TEST_PERFORMANCE0(test_generate_keypair);
   TEST_PERFORMANCE0(test_sc_reduce32);
+
+  TEST_PERFORMANCE2(test_wallet2_expand_subaddresses, 50, 200);
 
   TEST_PERFORMANCE0(test_cn_slow_hash);
   TEST_PERFORMANCE1(test_cn_fast_hash, 32);

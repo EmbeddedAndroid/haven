@@ -1,4 +1,7 @@
-// Copyright (c) 2014-2017, The Monero Project
+// Copyright (c) 2017-2018, Haven Protocol
+//
+// Portions Copyright (c) 2014-2017 The Monero Project.
+//
 // All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without modification, are
@@ -29,7 +32,7 @@
 #include <atomic>
 
 #include "blockchain_db/blockchain_db.h"
-#include "cryptonote_protocol/blobdatatype.h" // for type blobdata
+#include "cryptonote_basic/blobdatatype.h" // for type blobdata
 #include "ringct/rctTypes.h"
 #include <boost/thread/tss.hpp>
 
@@ -243,13 +246,13 @@ public:
 
   virtual void add_txpool_tx(const transaction &tx, const txpool_tx_meta_t& meta);
   virtual void update_txpool_tx(const crypto::hash &txid, const txpool_tx_meta_t& meta);
-  virtual uint64_t get_txpool_tx_count() const;
+  virtual uint64_t get_txpool_tx_count(bool include_unrelayed_txes = true) const;
   virtual bool txpool_has_tx(const crypto::hash &txid) const;
   virtual void remove_txpool_tx(const crypto::hash& txid);
-  virtual txpool_tx_meta_t get_txpool_tx_meta(const crypto::hash& txid) const;
+  virtual bool get_txpool_tx_meta(const crypto::hash& txid, txpool_tx_meta_t &meta) const;
   virtual bool get_txpool_tx_blob(const crypto::hash& txid, cryptonote::blobdata &bd) const;
   virtual cryptonote::blobdata get_txpool_tx_blob(const crypto::hash& txid) const;
-  virtual bool for_all_txpool_txes(std::function<bool(const crypto::hash&, const txpool_tx_meta_t&, const cryptonote::blobdata*)> f, bool include_blob = false) const;
+  virtual bool for_all_txpool_txes(std::function<bool(const crypto::hash&, const txpool_tx_meta_t&, const cryptonote::blobdata*)> f, bool include_blob = false, bool include_unrelayed_txes = true) const;
 
   virtual bool for_all_key_images(std::function<bool(const crypto::key_image&)>) const;
   virtual bool for_blocks_range(const uint64_t& h1, const uint64_t& h2, std::function<bool(uint64_t, const crypto::hash&, const cryptonote::block&)>) const;
@@ -264,7 +267,7 @@ public:
                             );
 
   virtual void set_batch_transactions(bool batch_transactions);
-  virtual bool batch_start(uint64_t batch_num_blocks=0);
+  virtual bool batch_start(uint64_t batch_num_blocks=0, uint64_t batch_bytes=0);
   virtual void batch_commit();
   virtual void batch_stop();
   virtual void batch_abort();
@@ -294,8 +297,8 @@ private:
   void do_resize(uint64_t size_increase=0);
 
   bool need_resize(uint64_t threshold_size=0) const;
-  void check_and_resize_for_batch(uint64_t batch_num_blocks);
-  uint64_t get_estimated_batch_size(uint64_t batch_num_blocks) const;
+  void check_and_resize_for_batch(uint64_t batch_num_blocks, uint64_t batch_bytes);
+  uint64_t get_estimated_batch_size(uint64_t batch_num_blocks, uint64_t batch_bytes) const;
 
   virtual void add_block( const block& blk
                 , const size_t& block_size
@@ -358,9 +361,6 @@ private:
   void check_open() const;
 
   virtual bool is_read_only() const;
-
-  // fix up anything that may be wrong due to past bugs
-  virtual void fixup();
 
   // migrate from older DB version to current
   void migrate(const uint32_t oldversion);

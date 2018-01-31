@@ -1,21 +1,21 @@
 // Copyright (c) 2014-2017, The Monero Project
-// 
+//
 // All rights reserved.
-// 
+//
 // Redistribution and use in source and binary forms, with or without modification, are
 // permitted provided that the following conditions are met:
-// 
+//
 // 1. Redistributions of source code must retain the above copyright notice, this list of
 //    conditions and the following disclaimer.
-// 
+//
 // 2. Redistributions in binary form must reproduce the above copyright notice, this list
 //    of conditions and the following disclaimer in the documentation and/or other
 //    materials provided with the distribution.
-// 
+//
 // 3. Neither the name of the copyright holder nor the names of its contributors may be
 //    used to endorse or promote products derived from this software without specific
 //    prior written permission.
-// 
+//
 // THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY
 // EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
 // MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL
@@ -25,7 +25,7 @@
 // INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
 // STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF
 // THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-// 
+//
 // Parts of this file are originally copyright (c) 2012-2013 The Cryptonote developers
 
 #pragma once
@@ -36,7 +36,6 @@
 #include <cstring>  // memcmp
 #include <sstream>
 #include <atomic>
-#include "serialization/serialization.h"
 #include "serialization/variant.h"
 #include "serialization/vector.h"
 #include "serialization/binary_archive.h"
@@ -53,11 +52,6 @@
 
 namespace cryptonote
 {
-
-  const static crypto::hash null_hash = AUTO_VAL_INIT(null_hash);
-  const static crypto::hash8 null_hash8 = AUTO_VAL_INIT(null_hash8);
-  const static crypto::public_key null_pkey = AUTO_VAL_INIT(null_pkey);
-
   typedef std::vector<crypto::signature> ring_signature;
 
 
@@ -264,7 +258,7 @@ namespace cryptonote
             ar.tag("rctsig_prunable");
             ar.begin_object();
             r = rct_signatures.p.serialize_rctsig_prunable(ar, rct_signatures.type, vin.size(), vout.size(),
-                vin[0].type() == typeid(txin_to_key) ? boost::get<txin_to_key>(vin[0]).key_offsets.size() - 1 : 0);
+                vin.size() > 0 && vin[0].type() == typeid(txin_to_key) ? boost::get<txin_to_key>(vin[0]).key_offsets.size() - 1 : 0);
             if (!r || !ar.stream().good()) return false;
             ar.end_object();
           }
@@ -416,6 +410,17 @@ namespace cryptonote
       KV_SERIALIZE_VAL_POD_AS_BLOB_FORCE(m_spend_public_key)
       KV_SERIALIZE_VAL_POD_AS_BLOB_FORCE(m_view_public_key)
     END_KV_SERIALIZE_MAP()
+
+    bool operator==(const account_public_address& rhs) const
+    {
+      return m_spend_public_key == rhs.m_spend_public_key &&
+             m_view_public_key == rhs.m_view_public_key;
+    }
+
+    bool operator!=(const account_public_address& rhs) const
+    {
+      return !(*this == rhs);
+    }
   };
 
   struct keypair
@@ -432,6 +437,21 @@ namespace cryptonote
   };
   //---------------------------------------------------------------
 
+}
+
+namespace std {
+  template <>
+  struct hash<cryptonote::account_public_address>
+  {
+    std::size_t operator()(const cryptonote::account_public_address& addr) const
+    {
+      // https://stackoverflow.com/a/17017281
+      size_t res = 17;
+      res = res * 31 + hash<crypto::public_key>()(addr.m_spend_public_key);
+      res = res * 31 + hash<crypto::public_key>()(addr.m_view_public_key);
+      return res;
+    }
+  };
 }
 
 BLOB_SERIALIZER(cryptonote::txout_to_key);

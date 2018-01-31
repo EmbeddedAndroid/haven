@@ -14,6 +14,7 @@
 //  http://muflihun.com
 //
 
+#define EASYLOGGING_CC
 #include "easylogging++.h"
 
 #if defined(AUTO_INITIALIZE_EASYLOGGINGPP)
@@ -1015,8 +1016,9 @@ const std::string OS::getBashOutput(const char* command) {
   char hBuff[4096];
   if (fgets(hBuff, sizeof(hBuff), proc) != nullptr) {
     pclose(proc);
-    if (hBuff[strlen(hBuff) - 1] == '\n') {
-      hBuff[strlen(hBuff) - 1] = '\0';
+    const size_t len = strlen(hBuff);
+    if (len > 0 && hBuff[len - 1] == '\n') {
+      hBuff[len- 1] = '\0';
     }
     return std::string(hBuff);
   }
@@ -1961,8 +1963,13 @@ void VRegistry::setCategories(const char* categories, bool clear) {
     m_categories.push_back(std::make_pair(ss.str(), level));
   };
 
-  if (clear)
+  if (clear) {
     m_categories.clear();
+    m_categoriesString.clear();
+  }
+  if (!m_categoriesString.empty())
+    m_categoriesString += ",";
+  m_categoriesString += categories;
   if (!categories)
     return;
 
@@ -1999,6 +2006,11 @@ void VRegistry::setCategories(const char* categories, bool clear) {
   if (!ss.str().empty() && level != Level::Unknown) {
     insert(ss, level);
   }
+}
+
+std::string VRegistry::getCategories() {
+  base::threading::ScopedLock scopedLock(lock());
+  return m_categoriesString;
 }
 
 // Log levels are sorted in a weird way...
@@ -3071,6 +3083,10 @@ void Loggers::clearVModules(void) {
 
 void Loggers::setCategories(const char* categories, bool clear) {
   ELPP->vRegistry()->setCategories(categories, clear);
+}
+
+std::string Loggers::getCategories() {
+  return ELPP->vRegistry()->getCategories();
 }
 
 void Loggers::clearCategories(void) {

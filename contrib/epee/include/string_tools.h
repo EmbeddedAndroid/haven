@@ -35,6 +35,7 @@
 # include <windows.h>
 #endif
 
+#include <string.h>
 #include <locale>
 #include <cstdlib>
 #include <string>
@@ -42,7 +43,7 @@
 #include <boost/uuid/uuid.hpp>
 #include <boost/uuid/uuid_io.hpp>
 #include <boost/lexical_cast.hpp>
-#include <boost/algorithm/string.hpp>
+#include <boost/algorithm/string/predicate.hpp>
 #include "hex.h"
 #include "span.h"
 #include "warnings.h"
@@ -160,7 +161,7 @@ DISABLE_GCC_WARNING(maybe-uninitialized)
       val = boost::lexical_cast<XType>(str_id);
       return true;
     }
-    catch(std::exception& /*e*/)
+    catch(const std::exception& /*e*/)
     {
       //const char* pmsg = e.what();
       return false;
@@ -349,6 +350,8 @@ POP_WARNINGS
     s = *(t_pod_type*)bin_buff.data();
     return true;
   }
+  //----------------------------------------------------------------------------
+  bool validate_hex(uint64_t length, const std::string& str);
   //----------------------------------------------------------------------------
 	inline std::string get_extension(const std::string& str)
 	{

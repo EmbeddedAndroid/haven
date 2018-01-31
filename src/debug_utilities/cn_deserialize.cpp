@@ -26,6 +26,7 @@
 // STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF
 // THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+#include <boost/filesystem.hpp>
 #include "cryptonote_basic/cryptonote_basic.h"
 #include "cryptonote_basic/tx_extra.h"
 #include "cryptonote_core/blockchain.h"
@@ -45,7 +46,7 @@ int main(int argc, char* argv[])
   uint32_t log_level = 0;
   std::string input;
 
-  tools::sanitize_locale();
+  tools::on_startup();
 
   boost::filesystem::path output_file_path;
 
@@ -76,7 +77,7 @@ int main(int argc, char* argv[])
 
   if (command_line::get_arg(vm, command_line::arg_help))
   {
-    std::cout << "Monero '" << MONERO_RELEASE_NAME << "' (v" << MONERO_VERSION_FULL << ")" << ENDL << ENDL;
+    std::cout << "Haven '" << HAVEN_RELEASE_NAME << "' (v" << HAVEN_VERSION_FULL << ")" << ENDL << ENDL;
     std::cout << desc_options << std::endl;
     return 1;
   }
@@ -153,7 +154,11 @@ int main(int argc, char* argv[])
     std::cout << "Parsed transaction:" << std::endl;
     std::cout << cryptonote::obj_to_json_str(tx) << std::endl;
 
-    if (cryptonote::parse_tx_extra(tx.extra, fields))
+    bool parsed = cryptonote::parse_tx_extra(tx.extra, fields);
+    if (!parsed)
+      std::cout << "Failed to parse tx_extra" << std::endl;
+
+    if (!fields.empty())
     {
       std::cout << "tx_extra has " << fields.size() << " field(s)" << std::endl;
       for (size_t n = 0; n < fields.size(); ++n)
@@ -170,7 +175,7 @@ int main(int argc, char* argv[])
     }
     else
     {
-      std::cout << "Failed to parse tx_extra" << std::endl;
+      std::cout << "No fields were found in tx_extra" << std::endl;
     }
   }
   else

@@ -1,4 +1,7 @@
-// Copyright (c) 2014-2018, The Monero Project
+// Copyright (c) 2017-2018, Haven Protocol
+//
+// Portions Copyright (c) 2014-2017 The Monero Project.
+//
 // All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without modification, are
@@ -112,7 +115,6 @@ struct mdb_txn_safe
   // BlockchainLMDB destructor to call mdb_txn_safe destructor, as that's too late
   // to properly abort, since mdb_env_close would have been called earlier.
   void abort();
-  void uncheck();
 
   operator MDB_txn*()
   {
@@ -255,8 +257,7 @@ public:
   virtual bool for_all_key_images(std::function<bool(const crypto::key_image&)>) const;
   virtual bool for_blocks_range(const uint64_t& h1, const uint64_t& h2, std::function<bool(uint64_t, const crypto::hash&, const cryptonote::block&)>) const;
   virtual bool for_all_transactions(std::function<bool(const crypto::hash&, const cryptonote::transaction&)>) const;
-  virtual bool for_all_outputs(std::function<bool(uint64_t amount, const crypto::hash &tx_hash, uint64_t height, size_t tx_idx)> f) const;
-  virtual bool for_all_outputs(uint64_t amount, const std::function<bool(uint64_t height)> &f) const;
+  virtual bool for_all_outputs(std::function<bool(uint64_t amount, const crypto::hash &tx_hash, size_t tx_idx)> f) const;
 
   virtual uint64_t add_block( const block& blk
                             , const size_t& block_size
@@ -287,13 +288,10 @@ public:
    * @param amounts optional set of amounts to lookup
    * @param unlocked whether to restrict count to unlocked outputs
    * @param recent_cutoff timestamp to determine which outputs are recent
-   * @param min_count return only amounts with at least that many instances
    *
    * @return a set of amount/instances
    */
-  std::map<uint64_t, std::tuple<uint64_t, uint64_t, uint64_t>> get_output_histogram(const std::vector<uint64_t> &amounts, bool unlocked, uint64_t recent_cutoff, uint64_t min_count) const;
-
-  bool get_output_distribution(uint64_t amount, uint64_t from_height, uint64_t to_height, std::vector<uint64_t> &distribution, uint64_t &base) const;
+  std::map<uint64_t, std::tuple<uint64_t, uint64_t, uint64_t>> get_output_histogram(const std::vector<uint64_t> &amounts, bool unlocked, uint64_t recent_cutoff) const;
 
 private:
   void do_resize(uint64_t size_increase=0);
@@ -363,9 +361,6 @@ private:
   void check_open() const;
 
   virtual bool is_read_only() const;
-
-  // fix up anything that may be wrong due to past bugs
-  virtual void fixup();
 
   // migrate from older DB version to current
   void migrate(const uint32_t oldversion);

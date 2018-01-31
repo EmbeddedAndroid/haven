@@ -1,4 +1,4 @@
-// Copyright (c) 2014-2018, The Monero Project
+// Copyright (c) 2014-2017, The Monero Project
 // 
 // All rights reserved.
 // 
@@ -34,9 +34,7 @@
 
 #include "hash-ops.h"
 
-#ifdef _MSC_VER
-#include <malloc.h>
-#elif !defined(__FreeBSD__) && !defined(__OpenBSD__) && !defined(__DragonFly__)
+#if !defined(__FreeBSD__) && !defined(__OpenBSD__) && !defined(__DragonFly__)
  #include <alloca.h>
 #else
  #include <stdlib.h>

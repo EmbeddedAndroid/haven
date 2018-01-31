@@ -1,4 +1,4 @@
-// Copyright (c) 2017-2018, The Monero Project
+// Copyright (c) 2017, The Monero Project
 //
 // All rights reserved.
 //
@@ -34,7 +34,6 @@
 #include <functional>
 #include <utility>
 #include <vector>
-#include <stdexcept>
 
 namespace tools
 {
@@ -58,7 +57,7 @@ public:
     void dec();
     void wait();  //! Wait for a set of tasks to finish.
     waiter() : num(0){}
-    ~waiter();
+    ~waiter() { wait(); }
   };
 
   // Submit a task to the pool. The waiter pointer may be

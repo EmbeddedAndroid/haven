@@ -1,4 +1,4 @@
-// Copyright (c) 2014-2018, The Monero Project
+// Copyright (c) 2014-2017, The Monero Project
 // 
 // All rights reserved.
 // 
@@ -32,7 +32,6 @@
 
 #include "wallet/wallet2.h"
 #include "common/dns_utils.h"
-#include "simplewallet/simplewallet.h"
 #include <string>
 
 TEST(AddressFromTXT, Success)
@@ -84,7 +83,7 @@ TEST(AddressFromTXT, Failure)
 
 TEST(AddressFromURL, Success)
 {
-  const std::string addr = MONERO_DONATION_ADDR;
+  const std::string addr = "44AFFq5kSiGBoZ4NMDwYtN18obc8AemS33DBLWs3H7otXft3XjrpDtQGv7SqSsaBYBb98uNbr2VBBEt7f2wfn3RVGQBEP3A";
   
   bool dnssec_result = false;
 

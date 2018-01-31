@@ -1,4 +1,4 @@
-// Copyright (c) 2014-2018, The Monero Project
+// Copyright (c) 2014-2017, The Monero Project
 // 
 // All rights reserved.
 // 
@@ -46,9 +46,9 @@ private:
 public:
   t_protocol(
       boost::program_options::variables_map const & vm
-    , t_core & core, bool offline = false
+    , t_core & core
     )
-    : m_protocol{core.get(), nullptr, offline}
+    : m_protocol{core.get(), nullptr}
   {
     MGINFO("Initializing cryptonote protocol...");
     if (!m_protocol.init(vm))

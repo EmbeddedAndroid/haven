@@ -1,4 +1,4 @@
-// Copyright (c) 2014-2018, The Monero Project
+// Copyright (c) 2014-2017, The Monero Project
 //
 // All rights reserved.
 //
@@ -198,11 +198,11 @@ namespace cryptonote
     /**
      * @brief loads pool state (if any) from disk, and initializes pool
      *
-     * @param max_txpool_size the max size in bytes
+     * @param config_folder folder name where pool state will be
      *
      * @return true
      */
-    bool init(size_t max_txpool_size = 0);
+    bool init();
 
     /**
      * @brief attempts to save the transaction pool state to disk
@@ -362,19 +362,6 @@ namespace cryptonote
      */
     size_t validate(uint8_t version);
 
-    /**
-     * @brief get the cumulative txpool size in bytes
-     *
-     * @return the cumulative txpool size in bytes
-     */
-    size_t get_txpool_size() const;
-
-    /**
-     * @brief set the max cumulative txpool size in bytes
-     *
-     * @param bytes the max cumulative txpool size in bytes
-     */
-    void set_txpool_max_size(size_t bytes);
 
 #define CURRENT_MEMPOOL_ARCHIVE_VER    11
 #define CURRENT_MEMPOOL_TX_DETAILS_ARCHIVE_VER    12
@@ -509,13 +496,6 @@ namespace cryptonote
      */
     void mark_double_spend(const transaction &tx);
 
-    /**
-     * @brief prune lowest fee/byte txes till we're not above bytes
-     *
-     * if bytes is 0, use m_txpool_max_size
-     */
-    void prune(size_t bytes = 0);
-
     //TODO: confirm the below comments and investigate whether or not this
     //      is the desired behavior
     //! map key images to transactions which spent them
@@ -562,9 +542,6 @@ private:
     std::unordered_set<crypto::hash> m_timed_out_transactions;
 
     Blockchain& m_blockchain;  //!< reference to the Blockchain object
-
-    size_t m_txpool_max_size;
-    size_t m_txpool_size;
   };
 }
 

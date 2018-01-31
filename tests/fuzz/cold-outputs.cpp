@@ -1,4 +1,4 @@
-// Copyright (c) 2017-2018, The Monero Project
+// Copyright (c) 2017, The Monero Project
 // 
 // All rights reserved.
 // 
@@ -37,7 +37,7 @@
 class ColdOutputsFuzzer: public Fuzzer
 {
 public:
-  ColdOutputsFuzzer(): wallet(cryptonote::TESTNET) {}
+  ColdOutputsFuzzer(): wallet(true) {}
   virtual int init();
   virtual int run(const std::string &filename);
 
@@ -54,7 +54,6 @@ int ColdOutputsFuzzer::init()
   try
   {
     wallet.init("");
-    wallet.set_subaddress_lookahead(1, 1);
     wallet.generate("", "", spendkey, true, false);
   }
   catch (const std::exception &e)

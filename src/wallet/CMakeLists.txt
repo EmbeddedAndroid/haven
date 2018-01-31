@@ -1,4 +1,6 @@
-# Copyright (c) 2014-2018, The Monero Project
+# Copyright (c) 2017-2018, Haven Protocol
+#
+# Portions Copyright (c) 2014-2017 The Monero Project.
 #
 # All rights reserved.
 #
@@ -33,7 +35,6 @@ set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
 set(wallet_sources
   wallet2.cpp
   wallet_args.cpp
-  ringdb.cpp
   node_rpc_proxy.cpp)
 
 set(wallet_private_headers
@@ -43,7 +44,6 @@ set(wallet_private_headers
   wallet_rpc_server.h
   wallet_rpc_server_commands_defs.h
   wallet_rpc_server_error_codes.h
-  ringdb.h
   node_rpc_proxy.h)
 
 monero_private_headers(wallet
@@ -57,7 +57,6 @@ target_link_libraries(wallet
     common
     cryptonote_core
     mnemonics
-    ${LMDB_LIBRARY}
     ${Boost_CHRONO_LIBRARY}
     ${Boost_SERIALIZATION_LIBRARY}
     ${Boost_FILESYSTEM_LIBRARY}
@@ -99,7 +98,7 @@ target_link_libraries(wallet_rpc_server
     ${EXTRA_LIBRARIES})
 set_property(TARGET wallet_rpc_server
   PROPERTY
-    OUTPUT_NAME "monero-wallet-rpc")
+    OUTPUT_NAME "haven-wallet-rpc")
 install(TARGETS wallet_rpc_server DESTINATION bin)
 
 
@@ -114,9 +113,7 @@ if (BUILD_GUI_DEPS)
             mnemonics
             common
             cncrypto
-            device
             ringct
-            ringct_basic
             checkpoints
             version)
 
@@ -131,6 +128,6 @@ if (BUILD_GUI_DEPS)
     endif()
     install(TARGETS wallet_merged
         ARCHIVE DESTINATION ${lib_folder})
-endif()
 
-add_subdirectory(api)
+    add_subdirectory(api)
+endif()

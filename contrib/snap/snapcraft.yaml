@@ -23,9 +23,9 @@ apps:
             - home
             - network
             - network-bind
-    monero-wallet-cli:
+    haven-wallet-cli:
         command: |
-          monero-wallet-cli --log-file ${SNAP_USER_DATA}
+          haven-wallet-cli --log-file ${SNAP_USER_DATA}
         plugs:
             - home
             - network
@@ -35,6 +35,7 @@ parts:
         plugin: cmake
         configflags:
             - -DBDB_STATIC=1
+            - -DUPNP_STATIC=1
             - -DBoost_USE_STATIC_LIBS=1
             - -DBoost_USE_STATIC_RUNTIME=1
             - -DARCH=default

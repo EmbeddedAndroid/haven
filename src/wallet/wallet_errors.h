@@ -1,21 +1,23 @@
-// Copyright (c) 2014-2018, The Monero Project
-// 
+// Copyright (c) 2017-2018, Haven Protocol
+//
+// Portions Copyright (c) 2014-2017 The Monero Project.
+//
 // All rights reserved.
-// 
+//
 // Redistribution and use in source and binary forms, with or without modification, are
 // permitted provided that the following conditions are met:
-// 
+//
 // 1. Redistributions of source code must retain the above copyright notice, this list of
 //    conditions and the following disclaimer.
-// 
+//
 // 2. Redistributions in binary form must reproduce the above copyright notice, this list
 //    of conditions and the following disclaimer in the documentation and/or other
 //    materials provided with the distribution.
-// 
+//
 // 3. Neither the name of the copyright holder nor the names of its contributors may be
 //    used to endorse or promote products derived from this software without specific
 //    prior written permission.
-// 
+//
 // THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY
 // EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
 // MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL
@@ -25,7 +27,7 @@
 // INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
 // STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF
 // THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-// 
+//
 // Parts of this file are originally copyright (c) 2012-2013 The Cryptonote developers
 
 #pragma once
@@ -36,7 +38,6 @@
 #include <vector>
 
 #include "cryptonote_basic/cryptonote_format_utils.h"
-#include "cryptonote_core/cryptonote_tx_utils.h"
 #include "rpc/core_rpc_server_commands_defs.h"
 #include "include_base_utils.h"
 
@@ -86,7 +87,6 @@ namespace tools
     //         no_connection_to_daemon
     //         is_key_image_spent_error
     //         get_histogram_error
-    //         get_output_distribution
     //       wallet_files_doesnt_correspond
     //
     // * - class with protected ctor
@@ -391,7 +391,7 @@ namespace tools
     struct get_tx_pool_error : public refresh_error
     {
       explicit get_tx_pool_error(std::string&& loc)
-        : refresh_error(std::move(loc), "error getting transaction pool")
+        : refresh_error(std::move(loc), "error getting tranaction pool")
       {
       }
 
@@ -531,13 +531,13 @@ namespace tools
         , sources_t const & sources
         , destinations_t const & destinations
         , uint64_t unlock_time
-        , cryptonote::network_type nettype
+        , bool testnet
         )
         : transfer_error(std::move(loc), "transaction was not constructed")
         , m_sources(sources)
         , m_destinations(destinations)
         , m_unlock_time(unlock_time)
-        , m_nettype(nettype)
+        , m_testnet(testnet)
       {
       }
 
@@ -571,7 +571,7 @@ namespace tools
         for (size_t i = 0; i < m_destinations.size(); ++i)
         {
           const cryptonote::tx_destination_entry& dst = m_destinations[i];
-          ss << "\n  " << i << ": " << cryptonote::get_account_address_as_str(m_nettype, dst.is_subaddress, dst.addr) << " " <<
+          ss << "\n  " << i << ": " << cryptonote::get_account_address_as_str(m_testnet, dst.is_subaddress, dst.addr) << " " <<
             cryptonote::print_money(dst.amount);
         }
 
@@ -584,7 +584,7 @@ namespace tools
       sources_t m_sources;
       destinations_t m_destinations;
       uint64_t m_unlock_time;
-      cryptonote::network_type m_nettype;
+      bool m_testnet;
     };
     //----------------------------------------------------------------------------------------------------
     struct tx_rejected : public transfer_error
@@ -626,12 +626,12 @@ namespace tools
           std::string && loc
         , const std::vector<cryptonote::tx_destination_entry>& destinations
         , uint64_t fee
-        , cryptonote::network_type nettype
+        , bool testnet
         )
         : transfer_error(std::move(loc), "transaction sum + fee exceeds " + cryptonote::print_money(std::numeric_limits<uint64_t>::max()))
         , m_destinations(destinations)
         , m_fee(fee)
-        , m_nettype(nettype)
+        , m_testnet(testnet)
       {
       }
 
@@ -646,7 +646,7 @@ namespace tools
           ", destinations:";
         for (const auto& dst : m_destinations)
         {
-          ss << '\n' << cryptonote::print_money(dst.amount) << " -> " << cryptonote::get_account_address_as_str(m_nettype, dst.is_subaddress, dst.addr);
+          ss << '\n' << cryptonote::print_money(dst.amount) << " -> " << cryptonote::get_account_address_as_str(m_testnet, dst.is_subaddress, dst.addr);
         }
         return ss.str();
       }
@@ -654,7 +654,7 @@ namespace tools
     private:
       std::vector<cryptonote::tx_destination_entry> m_destinations;
       uint64_t m_fee;
-      cryptonote::network_type m_nettype;
+      bool m_testnet;
     };
     //----------------------------------------------------------------------------------------------------
     struct tx_too_big : public transfer_error
@@ -755,14 +755,6 @@ namespace tools
     {
       explicit get_histogram_error(std::string&& loc, const std::string& request)
         : wallet_rpc_error(std::move(loc), "failed to get output histogram", request)
-      {
-      }
-    };
-    //----------------------------------------------------------------------------------------------------
-    struct get_output_distribution : public wallet_rpc_error
-    {
-      explicit get_output_distribution(std::string&& loc, const std::string& request)
-        : wallet_rpc_error(std::move(loc), "failed to get output distribution", request)
       {
       }
     };

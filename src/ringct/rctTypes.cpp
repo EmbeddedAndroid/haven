@@ -178,7 +178,6 @@ namespace rct {
             }
             while (i < 8 * (j + 1)) {
                 amountb2[i] = 0;
-                i++;
             }
         }
     }

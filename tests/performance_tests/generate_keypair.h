@@ -1,4 +1,4 @@
-// Copyright (c) 2014-2018, The Monero Project
+// Copyright (c) 2014-2017, The Monero Project
 // 
 // All rights reserved.
 // 
@@ -45,7 +45,7 @@ public:
 
   bool test()
   {
-    cryptonote::keypair::generate(hw::get_device("default"));
+    cryptonote::keypair::generate();
     return true;
   }
 };

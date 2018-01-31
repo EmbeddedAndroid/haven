@@ -1,4 +1,4 @@
-// Copyright (c) 2014-2018, The Monero Project
+// Copyright (c) 2014-2017, The Monero Project
 //
 // All rights reserved.
 //
@@ -52,33 +52,19 @@ struct Wallet2CallbackImpl;
 class WalletImpl : public Wallet
 {
 public:
-    WalletImpl(NetworkType nettype = MAINNET);
+    WalletImpl(bool testnet = false);
     ~WalletImpl();
     bool create(const std::string &path, const std::string &password,
                 const std::string &language);
     bool createWatchOnly(const std::string &path, const std::string &password,
                             const std::string &language) const;
     bool open(const std::string &path, const std::string &password);
-    bool recover(const std::string &path,const std::string &password,
-                            const std::string &seed);
-    bool recoverFromKeysWithPassword(const std::string &path,
-                            const std::string &password,
-                            const std::string &language,
-                            const std::string &address_string,
-                            const std::string &viewkey_string,
-                            const std::string &spendkey_string = "");
-    // following two methods are deprecated since they create passwordless wallets
-    // use the two equivalent methods above
     bool recover(const std::string &path, const std::string &seed);
-    // deprecated: use recoverFromKeysWithPassword() instead
     bool recoverFromKeys(const std::string &path,
                             const std::string &language,
                             const std::string &address_string, 
                             const std::string &viewkey_string,
                             const std::string &spendkey_string = "");
-    bool recoverFromDevice(const std::string &path,
-                           const std::string &password,
-                           const std::string &device_name);
     bool close(bool store = true);
     std::string seed() const;
     std::string getSeedLanguage() const;
@@ -116,11 +102,9 @@ public:
     void setRefreshFromBlockHeight(uint64_t refresh_from_block_height);
     uint64_t getRefreshFromBlockHeight() const { return m_wallet->get_refresh_from_block_height(); };
     void setRecoveringFromSeed(bool recoveringFromSeed);
-    void setRecoveringFromDevice(bool recoveringFromDevice);
-    void setSubaddressLookahead(uint32_t major, uint32_t minor);
     bool watchOnly() const;
     bool rescanSpent();
-    NetworkType nettype() const {return static_cast<NetworkType>(m_wallet->nettype());}
+    bool testnet() const {return m_wallet->testnet();}
     void hardForkInfo(uint8_t &version, uint64_t &earliest_height) const;
     bool useForkRules(uint8_t version, int64_t early_blocks) const;
 
@@ -158,8 +142,6 @@ public:
     virtual bool checkTxProof(const std::string &txid, const std::string &address, const std::string &message, const std::string &signature, bool &good, uint64_t &received, bool &in_pool, uint64_t &confirmations);
     virtual std::string getSpendProof(const std::string &txid, const std::string &message) const;
     virtual bool checkSpendProof(const std::string &txid, const std::string &message, const std::string &signature, bool &good) const;
-    virtual std::string getReserveProof(bool all, uint32_t account_index, uint64_t amount, const std::string &message) const;
-    virtual bool checkReserveProof(const std::string &address, const std::string &message, const std::string &signature, bool &good, uint64_t &total, uint64_t &spent) const;
     virtual std::string signMessage(const std::string &message);
     virtual bool verifySignedMessage(const std::string &message, const std::string &address, const std::string &signature) const;
     virtual void startRefresh();
@@ -168,14 +150,6 @@ public:
     virtual std::string getDefaultDataDir() const;
     virtual bool lightWalletLogin(bool &isNewWallet) const;
     virtual bool lightWalletImportWalletRequest(std::string &payment_id, uint64_t &fee, bool &new_request, bool &request_fulfilled, std::string &payment_address, std::string &status);
-    virtual bool blackballOutputs(const std::vector<std::string> &pubkeys, bool add);
-    virtual bool unblackballOutput(const std::string &pubkey);
-    virtual bool getRing(const std::string &key_image, std::vector<uint64_t> &ring) const;
-    virtual bool getRings(const std::string &txid, std::vector<std::pair<std::string, std::vector<uint64_t>>> &rings) const;
-    virtual bool setRing(const std::string &key_image, const std::vector<uint64_t> &ring, bool relative);
-    virtual void segregatePreForkOutputs(bool segregate);
-    virtual void segregationHeight(uint64_t height);
-    virtual void keyReuseMitigation2(bool mitigation);
 
 private:
     void clearStatus() const;
@@ -221,7 +195,6 @@ private:
     // so it shouldn't be considered as new and pull blocks (slow-refresh)
     // instead of pulling hashes (fast-refresh)
     std::atomic<bool>   m_recoveringFromSeed;
-    std::atomic<bool>   m_recoveringFromDevice;
     std::atomic<bool>   m_synchronized;
     std::atomic<bool>   m_rebuildWalletCache;
     // cache connection status to avoid unnecessary RPC calls

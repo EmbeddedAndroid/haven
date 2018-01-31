@@ -1,4 +1,4 @@
-# Copyright (c) 2014-2018, The Monero Project
+# Copyright (c) 2017-2018, Haven Protocol
 #
 # All rights reserved.
 #
@@ -26,14 +26,13 @@
 # STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF
 # THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #
-# Parts of this file are originally copyright (c) 2012-2013 The Cryptonote developers
+# Parts of this file are originally copyright (c) 2012-2013 The Cryptonote developers and 2014-2017, The Monero Project
 list(INSERT CMAKE_MODULE_PATH 0
   "${CMAKE_SOURCE_DIR}/cmake")
 include(CheckCCompilerFlag)
 include(CheckCXXCompilerFlag)
 include(CheckLinkerFlag)
 include(CheckLibraryExists)
-include(CheckFunctionExists)
 
 if (IOS)
     INCLUDE(CmakeLists_IOS.txt)
@@ -41,7 +40,7 @@ endif()
 
 cmake_minimum_required(VERSION 2.8.7)
 
-project(monero)
+project(haven)
 
 function (die msg)
   if (NOT WIN32)
@@ -78,22 +77,6 @@ function (add_linker_flag_if_supported flag var)
   check_linker_flag(${flag} ${supported})
   if(${${supported}})
     set(${var} "${${var}} ${flag}" PARENT_SCOPE)
-  endif()
-endfunction()
-
-function (add_definition_if_function_found function var)
-  string(REPLACE "-" "_" supported ${function}_function)
-  check_function_exists(${function} ${supported})
-  if(${${supported}})
-    add_definitions("-D${var}")
-  endif()
-endfunction()
-
-function (add_definition_if_library_exists library function header var)
-  string(REPLACE "-" "_" supported ${function}_library)
-  check_library_exists(${library} ${function} ${header} ${supported})
-  if(${${supported}})
-    add_definitions("-D${var}")
   endif()
 endfunction()
 
@@ -236,7 +219,7 @@ endif()
 # elseif(CMAKE_SYSTEM_NAME MATCHES ".*BSDI.*")
 #   set(BSDI TRUE)
 
-include_directories(external/rapidjson/include external/easylogging++ src contrib/epee/include external)
+include_directories(external/easylogging++ src contrib/epee/include external)
 
 if(APPLE)
   include_directories(SYSTEM /usr/include/malloc)
@@ -298,7 +281,7 @@ if(SANITIZE)
 endif()
 
 # Set default blockchain storage location:
-# memory was the default in Cryptonote before Monero implemented LMDB, it still works but is unnecessary.
+# memory was the default in Cryptonote before Monero implimented LMDB, it still works but is unneccessary.
 # set(DATABASE memory)
 set(DATABASE lmdb)
 
@@ -412,12 +395,6 @@ if(STATIC AND NOT IOS)
   endif()
 endif()
 
-find_package(PCSC)
-
-add_definition_if_library_exists(c memset_s "string.h" HAVE_MEMSET_S)
-add_definition_if_library_exists(c explicit_bzero "strings.h" HAVE_EXPLICIT_BZERO)
-add_definition_if_function_found(strptime HAVE_STRPTIME)
-
 add_definitions(-DAUTO_INITIALIZE_EASYLOGGINGPP)
 
 # Generate header for embedded translations
@@ -429,6 +406,14 @@ ExternalProject_Add(generate_translations_header
 include_directories("${CMAKE_CURRENT_BINARY_DIR}/translations")
 
 add_subdirectory(external)
+
+# Final setup for miniupnpc
+if(UPNP_STATIC OR IOS)
+  add_definitions("-DUPNP_STATIC")
+else()
+  add_definitions("-DUPNP_DYNAMIC")
+  include_directories(${UPNP_INCLUDE})
+endif()
 
 # Final setup for libunbound
 include_directories(${UNBOUND_INCLUDE})
@@ -449,16 +434,6 @@ endif()
 # Final setup for libunwind
 include_directories(${LIBUNWIND_INCLUDE})
 link_directories(${LIBUNWIND_LIBRARY_DIRS})
-
-# Final setup for libpcsc
-if (PCSC_FOUND) 
-  message(STATUS "Using PCSC include dir at ${PCSC_INCLUDE_DIR}")
-  add_definitions(-DHAVE_PCSC)
-  include_directories(${PCSC_INCLUDE_DIR})
-  link_directories(${LIBPCSC_LIBRARY_DIRS})
-else (PCSC_FOUND)
-  message(STATUS "Could not find PCSC")
-endif()
 
 if(MSVC)
   add_definitions("/bigobj /MP /W3 /GS- /D_CRT_SECURE_NO_WARNINGS /wd4996 /wd4345 /D_WIN32_WINNT=0x0600 /DWIN32_LEAN_AND_MEAN /DGTEST_HAS_TR1_TUPLE=0 /FIinline_c.h /D__SSE4_1__")
@@ -696,7 +671,7 @@ else()
   endif(ARM)
 
   if(ANDROID AND NOT BUILD_GUI_DEPS STREQUAL "ON" OR IOS)
-    #From Android 5: "only position independent executables (PIE) are supported" 
+    #From Android 5: "only position independent executables (PIE) are supported"
     message(STATUS "Enabling PIE executable")
     set(PIC_FLAG "")
     set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fPIE")
@@ -778,7 +753,7 @@ if(STATIC)
   set(Boost_USE_STATIC_LIBS ON)
   set(Boost_USE_STATIC_RUNTIME ON)
 endif()
-find_package(Boost 1.58 QUIET REQUIRED COMPONENTS system filesystem thread date_time chrono regex serialization program_options locale)
+find_package(Boost 1.58 QUIET REQUIRED COMPONENTS system filesystem thread date_time chrono regex serialization program_options)
 
 set(CMAKE_FIND_LIBRARY_SUFFIXES ${OLD_LIB_SUFFIXES})
 if(NOT Boost_FOUND)
@@ -795,7 +770,6 @@ endif()
 include_directories(SYSTEM ${Boost_INCLUDE_DIRS})
 if(MINGW)
   set(EXTRA_LIBRARIES mswsock;ws2_32;iphlpapi)
-  set(ICU_LIBRARIES ${Boost_LOCALE_LIBRARY} icuio icuin icuuc icudt icutu iconv)
 elseif(APPLE OR OPENBSD OR ANDROID)
   set(EXTRA_LIBRARIES "")
 elseif(FREEBSD)
@@ -893,3 +867,10 @@ option(INSTALL_VENDORED_LIBUNBOUND "Install libunbound binary built from source 
 
 
 CHECK_C_COMPILER_FLAG(-std=c11 HAVE_C11)
+
+include(CheckLibraryExists)
+include(CheckFunctionExists)
+
+check_library_exists(c memset_s "string.h" HAVE_MEMSET_S)
+check_library_exists(c explicit_bzero "strings.h" HAVE_EXPLICIT_BZERO)
+check_function_exists(strptime HAVE_STRPTIME)

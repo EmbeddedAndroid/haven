@@ -1,4 +1,4 @@
-// Copyright (c) 2017-2018, The Monero Project
+// Copyright (c) 2017, The Monero Project
 // 
 // All rights reserved.
 // 
@@ -69,16 +69,14 @@ namespace
 {
   const command_line::arg_descriptor<std::string> arg_filename_base = {"filename-base", genms::tr("Base filename (-1, -2, etc suffixes will be appended as needed)"), ""};
   const command_line::arg_descriptor<std::string> arg_scheme = {"scheme", genms::tr("Give threshold and participants at once as M/N"), ""};
-  const command_line::arg_descriptor<uint32_t> arg_participants = {"participants", genms::tr("How many participants will share parts of the multisig wallet"), 0};
+  const command_line::arg_descriptor<uint32_t> arg_participants = {"participants", genms::tr("How many participants wil share parts of the multisig wallet"), 0};
   const command_line::arg_descriptor<uint32_t> arg_threshold = {"threshold", genms::tr("How many signers are required to sign a valid transaction"), 0};
   const command_line::arg_descriptor<bool, false> arg_testnet = {"testnet", genms::tr("Create testnet multisig wallets"), false};
-  const command_line::arg_descriptor<bool, false> arg_stagenet = {"stagenet", genms::tr("Create stagenet multisig wallets"), false};
-  const command_line::arg_descriptor<bool, false> arg_create_address_file = {"create-address-file", genms::tr("Create an address file for new wallets"), false};
 
   const command_line::arg_descriptor< std::vector<std::string> > arg_command = {"command", ""};
 }
 
-static bool generate_multisig(uint32_t threshold, uint32_t total, const std::string &basename, network_type nettype, bool create_address_file)
+static bool generate_multisig(uint32_t threshold, uint32_t total, const std::string &basename, bool testnet)
 {
   tools::msg_writer() << (boost::format(genms::tr("Generating %u %u/%u multisig wallets")) % total % threshold % total).str();
 
@@ -91,9 +89,9 @@ static bool generate_multisig(uint32_t threshold, uint32_t total, const std::str
     for (size_t n = 0; n < total; ++n)
     {
       std::string name = basename + "-" + std::to_string(n + 1);
-      wallets[n].reset(new tools::wallet2(nettype));
+      wallets[n].reset(new tools::wallet2(testnet));
       wallets[n]->init("");
-      wallets[n]->generate(name, pwd_container->password(), rct::rct2sk(rct::skGen()), false, false, create_address_file);
+      wallets[n]->generate(name, pwd_container->password(), rct::rct2sk(rct::skGen()), false, false);
     }
 
     // gather the keys
@@ -151,7 +149,7 @@ static bool generate_multisig(uint32_t threshold, uint32_t total, const std::str
       }
     }
 
-    std::string address = wallets[0]->get_account().get_public_address_str(wallets[0]->nettype());
+    std::string address = wallets[0]->get_account().get_public_address_str(wallets[0]->testnet());
     tools::success_msg_writer() << genms::tr("Generated multisig wallets for address ") << address << std::endl << ss.str();
   }
   catch (const std::exception &e)
@@ -171,12 +169,10 @@ int main(int argc, char* argv[])
   command_line::add_arg(desc_params, arg_threshold);
   command_line::add_arg(desc_params, arg_participants);
   command_line::add_arg(desc_params, arg_testnet);
-  command_line::add_arg(desc_params, arg_stagenet);
-  command_line::add_arg(desc_params, arg_create_address_file);
 
   const auto vm = wallet_args::main(
    argc, argv,
-   "monero-gen-multisig [(--testnet|--stagenet)] [--filename-base=<filename>] [--scheme=M/N] [--threshold=M] [--participants=N]",
+   "monero-gen-multisig [--testnet] [--filename-base=<filename>] [--scheme=M/N] [--threshold=M] [--participants=N]",
     genms::tr("This program generates a set of multisig wallets - use this simpler scheme only if all the participants trust each other"),
     desc_params,
     boost::program_options::positional_options_description(),
@@ -186,17 +182,11 @@ int main(int argc, char* argv[])
   if (!vm)
     return 1;
 
-  bool testnet, stagenet;
+  bool testnet;
   uint32_t threshold = 0, total = 0;
   std::string basename;
 
   testnet = command_line::get_arg(*vm, arg_testnet);
-  stagenet = command_line::get_arg(*vm, arg_stagenet);
-  if (testnet && stagenet)
-  {
-    tools::fail_msg_writer() << genms::tr("Error: Can't specify more than one of --testnet and --stagenet");
-    return 1;
-  }
   if (command_line::has_arg(*vm, arg_scheme))
   {
     if (sscanf(command_line::get_arg(*vm, arg_scheme).c_str(), "%u/%u", &threshold, &total) != 2)
@@ -243,8 +233,7 @@ int main(int argc, char* argv[])
     tools::fail_msg_writer() << genms::tr("Error: unsupported scheme: only N/N and N-1/N are supported");
     return 1;
   }
-  bool create_address_file = command_line::get_arg(*vm, arg_create_address_file);
-  if (!generate_multisig(threshold, total, basename, testnet ? TESTNET : stagenet ? STAGENET : MAINNET, create_address_file))
+  if (!generate_multisig(threshold, total, basename, testnet))
     return 1;
 
   return 0;

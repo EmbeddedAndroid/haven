@@ -1,4 +1,6 @@
-// Copyright (c) 2014-2018, The Monero Project
+// Copyright (c) 2017-2018, Haven Protocol
+//
+// Portions Copyright (c) 2014-2017 The Monero Project.
 //
 // All rights reserved.
 //
@@ -33,7 +35,6 @@
 #include <vector>
 #include "misc_log_ex.h"
 #include "crypto/hash.h"
-#include "cryptonote_config.h"
 
 #define ADD_CHECKPOINT(h, hash)  CHECK_AND_ASSERT(add_checkpoint(h,  hash), false);
 #define JSON_HASH_FILE_NAME "checkpoints.json"
@@ -148,11 +149,11 @@ namespace cryptonote
 
     /**
      * @brief loads the default main chain checkpoints
-     * @param nettype network type
+     * @param testnet whether to load testnet checkpoints or mainnet
      *
      * @return true unless adding a checkpoint fails
      */
-    bool init_default_checkpoints(network_type nettype);
+    bool init_default_checkpoints(bool testnet);
 
     /**
      * @brief load new checkpoints
@@ -161,12 +162,12 @@ namespace cryptonote
      * (optionally) from DNS.
      *
      * @param json_hashfile_fullpath path to the json checkpoints file
-     * @param nettype network type
+     * @param testnet whether to load testnet checkpoints or mainnet
      * @param dns whether or not to load DNS checkpoints
      *
      * @return true if loading successful and no conflicts
      */
-    bool load_new_checkpoints(const std::string &json_hashfile_fullpath, network_type nettype=MAINNET, bool dns=true);
+    bool load_new_checkpoints(const std::string &json_hashfile_fullpath, bool testnet=false, bool dns=true);
 
     /**
      * @brief load new checkpoints from json
@@ -180,11 +181,11 @@ namespace cryptonote
     /**
      * @brief load new checkpoints from DNS
      *
-     * @param nettype network type
+     * @param testnet whether to load testnet checkpoints or mainnet
      *
      * @return true if loading successful and no conflicts
      */
-    bool load_checkpoints_from_dns(network_type nettype = MAINNET);
+    bool load_checkpoints_from_dns(bool testnet = false);
 
   private:
     std::map<uint64_t, crypto::hash> m_points; //!< the checkpoints container

@@ -1,4 +1,4 @@
-// Copyright (c) 2014-2018, The Monero Project
+// Copyright (c) 2014-2017, The Monero Project
 // 
 // All rights reserved.
 // 
@@ -70,13 +70,12 @@ public:
   uint64_t get_target_blockchain_height() const { return 1; }
   size_t get_block_sync_size(uint64_t height) const { return BLOCKS_SYNCHRONIZING_DEFAULT_COUNT; }
   virtual void on_transaction_relayed(const cryptonote::blobdata& tx) {}
-  cryptonote::network_type get_nettype() const { return cryptonote::MAINNET; }
+  bool get_testnet() const { return false; }
   bool get_pool_transaction(const crypto::hash& id, cryptonote::blobdata& tx_blob) const { return false; }
   bool pool_has_tx(const crypto::hash &txid) const { return false; }
   bool get_blocks(uint64_t start_offset, size_t count, std::list<std::pair<cryptonote::blobdata, cryptonote::block>>& blocks, std::list<cryptonote::blobdata>& txs) const { return false; }
   bool get_transactions(const std::vector<crypto::hash>& txs_ids, std::list<cryptonote::transaction>& txs, std::list<crypto::hash>& missed_txs) const { return false; }
   bool get_block_by_hash(const crypto::hash &h, cryptonote::block &blk, bool *orphan = NULL) const { return false; }
-  uint8_t get_ideal_hard_fork_version() const { return 0; }
   uint8_t get_ideal_hard_fork_version(uint64_t height) const { return 0; }
   uint8_t get_hard_fork_version(uint64_t height) const { return 0; }
   cryptonote::difficulty_type get_block_cumulative_difficulty(uint64_t height) const { return 0; }

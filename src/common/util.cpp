@@ -1,4 +1,4 @@
-// Copyright (c) 2014-2018, The Monero Project
+// Copyright (c) 2014-2017, The Monero Project
 // 
 // All rights reserved.
 // 
@@ -34,8 +34,6 @@
 #include <gnu/libc-version.h>
 #endif
 
-#include "unbound.h"
-
 #include "include_base_utils.h"
 #include "file_io_utils.h"
 #include "wipeable_string.h"
@@ -43,7 +41,6 @@ using namespace epee;
 
 #include "crypto/crypto.h"
 #include "util.h"
-#include "stack_trace.h"
 #include "memwipe.h"
 #include "cryptonote_config.h"
 #include "net/http_client.h"                        // epee::net_utils::...
@@ -436,22 +433,15 @@ std::string get_nix_version_display_string()
 #ifdef WIN32
   std::string get_special_folder_path(int nfolder, bool iscreate)
   {
-    WCHAR psz_path[MAX_PATH] = L"";
+    namespace fs = boost::filesystem;
+    char psz_path[MAX_PATH] = "";
 
-    if (SHGetSpecialFolderPathW(NULL, psz_path, nfolder, iscreate))
+    if(SHGetSpecialFolderPathA(NULL, psz_path, nfolder, iscreate))
     {
-      try
-      {
-        return string_tools::utf16_to_utf8(psz_path);
-      }
-      catch (const std::exception &e)
-      {
-        MERROR("utf16_to_utf8 failed: " << e.what());
-        return "";
-      }
+      return psz_path;
     }
 
-    LOG_ERROR("SHGetSpecialFolderPathW() failed, could not obtain requested path.");
+    LOG_ERROR("SHGetSpecialFolderPathA() failed, could not obtain requested path.");
     return "";
   }
 #endif
@@ -463,7 +453,8 @@ std::string get_nix_version_display_string()
     // namespace fs = boost::filesystem;
     // Windows < Vista: C:\Documents and Settings\Username\Application Data\CRYPTONOTE_NAME
     // Windows >= Vista: C:\Users\Username\AppData\Roaming\CRYPTONOTE_NAME
-    // Unix & Mac: ~/.CRYPTONOTE_NAME
+    // Mac: ~/Library/Application Support/CRYPTONOTE_NAME
+    // Unix: ~/.CRYPTONOTE_NAME
     std::string config_folder;
 
 #ifdef WIN32
@@ -475,7 +466,14 @@ std::string get_nix_version_display_string()
       pathRet = "/";
     else
       pathRet = pszHome;
+#ifdef MAC_OSX
+    // Mac
+    pathRet /= "Library/Application Support";
+    config_folder =  (pathRet + "/" + CRYPTONOTE_NAME);
+#else
+    // Unix
     config_folder = (pathRet + "/." + CRYPTONOTE_NAME);
+#endif
 #endif
 
     return config_folder;
@@ -509,41 +507,19 @@ std::string get_nix_version_display_string()
     int code;
 #if defined(WIN32)
     // Maximizing chances for success
-    std::wstring wide_replacement_name;
-    try { wide_replacement_name = string_tools::utf8_to_utf16(replacement_name); }
-    catch (...) { return std::error_code(GetLastError(), std::system_category()); }
-    std::wstring wide_replaced_name;
-    try { wide_replaced_name = string_tools::utf8_to_utf16(replaced_name); }
-    catch (...) { return std::error_code(GetLastError(), std::system_category()); }
-
-    DWORD attributes = ::GetFileAttributesW(wide_replaced_name.c_str());
+    DWORD attributes = ::GetFileAttributes(replaced_name.c_str());
     if (INVALID_FILE_ATTRIBUTES != attributes)
     {
-      ::SetFileAttributesW(wide_replaced_name.c_str(), attributes & (~FILE_ATTRIBUTE_READONLY));
+      ::SetFileAttributes(replaced_name.c_str(), attributes & (~FILE_ATTRIBUTE_READONLY));
     }
 
-    bool ok = 0 != ::MoveFileExW(wide_replacement_name.c_str(), wide_replaced_name.c_str(), MOVEFILE_REPLACE_EXISTING);
+    bool ok = 0 != ::MoveFileEx(replacement_name.c_str(), replaced_name.c_str(), MOVEFILE_REPLACE_EXISTING);
     code = ok ? 0 : static_cast<int>(::GetLastError());
 #else
     bool ok = 0 == std::rename(replacement_name.c_str(), replaced_name.c_str());
     code = ok ? 0 : errno;
 #endif
     return std::error_code(code, std::system_category());
-  }
-
-  static bool unbound_built_with_threads()
-  {
-    ub_ctx *ctx = ub_ctx_create();
-    if (!ctx) return false; // cheat a bit, should not happen unless OOM
-    char *monero = strdup("monero"), *unbound = strdup("unbound");
-    ub_ctx_zone_add(ctx, monero, unbound); // this calls ub_ctx_finalize first, then errors out with UB_SYNTAX
-    free(unbound);
-    free(monero);
-    // if no threads, bails out early with UB_NOERROR, otherwise fails with UB_AFTERFINAL id already finalized
-    bool with_threads = ub_ctx_async(ctx, 1) != 0; // UB_AFTERFINAL is not defined in public headers, check any error
-    ub_ctx_delete(ctx);
-    MINFO("libunbound was built " << (with_threads ? "with" : "without") << " threads");
-    return with_threads;
   }
 
   bool sanitize_locale()
@@ -568,47 +544,11 @@ std::string get_nix_version_display_string()
     }
     return false;
   }
-
-#ifdef STACK_TRACE
-#ifdef _WIN32
-  // https://stackoverflow.com/questions/1992816/how-to-handle-seg-faults-under-windows
-  static LONG WINAPI windows_crash_handler(PEXCEPTION_POINTERS pExceptionInfo)
-  {
-    tools::log_stack_trace("crashing");
-    exit(1);
-    return EXCEPTION_CONTINUE_SEARCH;
-  }
-  static void setup_crash_dump()
-  {
-    SetUnhandledExceptionFilter(windows_crash_handler);
-  }
-#else
-  static void posix_crash_handler(int signal)
-  {
-    tools::log_stack_trace(("crashing with fatal signal " + std::to_string(signal)).c_str());
-#ifdef NDEBUG
-    _exit(1);
-#else
-    abort();
-#endif
-  }
-  static void setup_crash_dump()
-  {
-    signal(SIGSEGV, posix_crash_handler);
-    signal(SIGBUS, posix_crash_handler);
-    signal(SIGILL, posix_crash_handler);
-    signal(SIGFPE, posix_crash_handler);
-  }
-#endif
-#else
-  static void setup_crash_dump() {}
-#endif
-
   bool on_startup()
   {
-    mlog_configure("", true);
+    wipeable_string::set_wipe(&memwipe);
 
-    setup_crash_dump();
+    mlog_configure("", true);
 
     sanitize_locale();
 
@@ -623,9 +563,6 @@ std::string get_nix_version_display_string()
 #else
     OPENSSL_init_ssl(0, NULL);
 #endif
-
-    if (!unbound_built_with_threads())
-      MCLOG_RED(el::Level::Warning, "global", "libunbound was not built with threads enabled - crashes may occur");
 
     return true;
   }
@@ -664,13 +601,6 @@ std::string get_nix_version_display_string()
 
   bool is_local_address(const std::string &address)
   {
-    // always assume Tor/I2P addresses to be untrusted by default
-    if (boost::ends_with(address, ".onion") || boost::ends_with(address, ".i2p"))
-    {
-      MDEBUG("Address '" << address << "' is Tor/I2P, non local");
-      return false;
-    }
-
     // extract host
     epee::net_utils::http::url_content u_c;
     if (!epee::net_utils::parse_url(address, u_c))
@@ -763,23 +693,5 @@ std::string get_nix_version_display_string()
     if (!SHA256_Final((unsigned char*)hash.data, &ctx))
       return false;
     return true;
-  }
-
-  boost::optional<std::pair<uint32_t, uint32_t>> parse_subaddress_lookahead(const std::string& str)
-  {
-    auto pos = str.find(":");
-    bool r = pos != std::string::npos;
-    uint32_t major;
-    r = r && epee::string_tools::get_xtype_from_string(major, str.substr(0, pos));
-    uint32_t minor;
-    r = r && epee::string_tools::get_xtype_from_string(minor, str.substr(pos + 1));
-    if (r)
-    {
-      return std::make_pair(major, minor);
-    }
-    else
-    {
-      return {};
-    }
   }
 }

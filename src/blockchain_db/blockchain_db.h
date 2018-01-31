@@ -1,4 +1,6 @@
-// Copyright (c) 2014-2018, The Monero Project
+// Copyright (c) 2017-2018, Haven Protocol
+//
+// Portions Copyright (c) 2014-2017 The Monero Project.
 //
 // All rights reserved.
 //
@@ -148,7 +150,6 @@ struct txpool_tx_meta_t
   uint8_t relayed;
   uint8_t do_not_relay;
   uint8_t double_spend_seen: 1;
-  uint8_t bf_padding: 7;
 
   uint8_t padding[76]; // till 192 bytes
 };
@@ -406,7 +407,7 @@ private:
   /**
    * @brief remove data about a transaction
    *
-   * The subclass implementing this will remove the transaction data 
+   * The subclass implementing this will remove the transaction data
    * for the passed transaction.  The data to be removed was added in
    * add_transaction_data().  Additionally, current subclasses have behavior
    * which requires the transaction itself as a parameter here.  Future
@@ -537,11 +538,6 @@ protected:
   HardFork* m_hardfork;
 
 public:
-
-  /**
-   * @brief An empty constructor.
-   */
-  BlockchainDB(): m_open(false) { }
 
   /**
    * @brief An empty destructor.
@@ -1271,7 +1267,7 @@ public:
    * @param outputs return-by-reference a list of outputs' metadata
    */
   virtual void get_output_key(const uint64_t &amount, const std::vector<uint64_t> &offsets, std::vector<output_data_t> &outputs, bool allow_partial = false) = 0;
-  
+
   /*
    * FIXME: Need to check with git blame and ask what this does to
    * document it
@@ -1449,9 +1445,7 @@ public:
    *
    * @return false if the function returns false for any output, otherwise true
    */
-  virtual bool for_all_outputs(std::function<bool(uint64_t amount, const crypto::hash &tx_hash, uint64_t height, size_t tx_idx)> f) const = 0;
-  virtual bool for_all_outputs(uint64_t amount, const std::function<bool(uint64_t height)> &f) const = 0;
-
+  virtual bool for_all_outputs(std::function<bool(uint64_t amount, const crypto::hash &tx_hash, size_t tx_idx)> f) const = 0;
 
 
   //
@@ -1491,13 +1485,10 @@ public:
    * @param amounts optional set of amounts to lookup
    * @param unlocked whether to restrict count to unlocked outputs
    * @param recent_cutoff timestamp to determine whether an output is recent
-   * @param min_count return only amounts with at least that many instances
    *
    * @return a set of amount/instances
    */
-  virtual std::map<uint64_t, std::tuple<uint64_t, uint64_t, uint64_t>> get_output_histogram(const std::vector<uint64_t> &amounts, bool unlocked, uint64_t recent_cutoff, uint64_t min_count) const = 0;
-
-  virtual bool get_output_distribution(uint64_t amount, uint64_t from_height, uint64_t to_height, std::vector<uint64_t> &distribution, uint64_t &base) const = 0;
+  virtual std::map<uint64_t, std::tuple<uint64_t, uint64_t, uint64_t>> get_output_histogram(const std::vector<uint64_t> &amounts, bool unlocked, uint64_t recent_cutoff) const = 0;
 
   /**
    * @brief is BlockchainDB in read-only mode?
@@ -1505,13 +1496,6 @@ public:
    * @return true if in read-only mode, otherwise false
    */
   virtual bool is_read_only() const = 0;
-
-  // TODO: this should perhaps be (or call) a series of functions which
-  // progressively update through version updates
-  /**
-   * @brief fix up anything that may be wrong due to past bugs
-   */
-  virtual void fixup();
 
   /**
    * @brief set whether or not to automatically remove logs

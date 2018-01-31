@@ -1,4 +1,4 @@
-// Copyright (c) 2017-2018, The Monero Project
+// Copyright (c) 2017, The Monero Project
 //
 // All rights reserved.
 //
@@ -25,7 +25,6 @@
 // INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
 // STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF
 // THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-#include "misc_log_ex.h"
 #include "common/threadpool.h"
 
 #include <cassert>
@@ -80,23 +79,6 @@ void threadpool::submit(waiter *obj, std::function<void()> f) {
 
 int threadpool::get_max_concurrency() {
   return max;
-}
-
-threadpool::waiter::~waiter()
-{
-  {
-    boost::unique_lock<boost::mutex> lock(mt);
-    if (num)
-      MERROR("wait should have been called before waiter dtor - waiting now");
-  }
-  try
-  {
-    wait();
-  }
-  catch (const std::exception &e)
-  {
-    /* ignored */
-  }
 }
 
 void threadpool::waiter::wait() {

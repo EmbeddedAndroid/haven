@@ -1,4 +1,4 @@
-// Copyright (c) 2014-2018, The Monero Project
+// Copyright (c) 2014-2017, The Monero Project
 // 
 // All rights reserved.
 // 
@@ -42,9 +42,11 @@
 #include <unistd.h>
 #endif
 
-#include "memwipe.h"
+#ifdef HAVE_READLINE
+  #include "readline_buffer.h"
+#endif
 
-#define EOT 0x4
+#include "memwipe.h"
 
 namespace
 {
@@ -132,7 +134,7 @@ namespace
     while (aPass.size() < tools::password_container::max_password_size)
     {
       int ch = getch();
-      if (EOF == ch || ch == EOT)
+      if (EOF == ch)
       {
         return false;
       }
@@ -227,20 +229,13 @@ namespace tools
     m_password.clear();
   }
 
-  std::atomic<bool> password_container::is_prompting(false);
-
   boost::optional<password_container> password_container::prompt(const bool verify, const char *message)
   {
-    is_prompting = true;
     password_container pass1{};
     password_container pass2{};
     if (is_cin_tty() ? read_from_tty(verify, message, pass1.m_password, pass2.m_password) : read_from_file(pass1.m_password))
-    {
-      is_prompting = false;
       return {std::move(pass1)};
-    }
 
-    is_prompting = false;
     return boost::none;
   }
 

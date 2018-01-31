@@ -1,4 +1,7 @@
-// Copyright (c) 2014-2017, The Monero Project
+// Copyright (c) 2017-2018, Haven Protocol
+//
+// Portions Copyright (c) 2014-2017 The Monero Project.
+//
 // All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without modification, are
@@ -421,10 +424,6 @@ private:
   void check_open() const;
 
   virtual bool is_read_only() const;
-
-  //
-  // fix up anything that may be wrong due to past bugs
-  virtual void fixup();
 
   bool m_run_checkpoint;
   std::unique_ptr<boost::thread> m_checkpoint_thread;

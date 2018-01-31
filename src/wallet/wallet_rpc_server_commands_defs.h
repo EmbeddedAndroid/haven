@@ -1,21 +1,23 @@
-// Copyright (c) 2014-2017, The Monero Project
-// 
+// Copyright (c) 2017-2018, Haven Protocol
+//
+// Portions Copyright (c) 2014-2017 The Monero Project.
+//
 // All rights reserved.
-// 
+//
 // Redistribution and use in source and binary forms, with or without modification, are
 // permitted provided that the following conditions are met:
-// 
+//
 // 1. Redistributions of source code must retain the above copyright notice, this list of
 //    conditions and the following disclaimer.
-// 
+//
 // 2. Redistributions in binary form must reproduce the above copyright notice, this list
 //    of conditions and the following disclaimer in the documentation and/or other
 //    materials provided with the distribution.
-// 
+//
 // 3. Neither the name of the copyright holder nor the names of its contributors may be
 //    used to endorse or promote products derived from this software without specific
 //    prior written permission.
-// 
+//
 // THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY
 // EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
 // MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL
@@ -25,7 +27,7 @@
 // INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
 // STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF
 // THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-// 
+//
 // Parts of this file are originally copyright (c) 2012-2013 The Cryptonote developers
 
 #pragma once
@@ -761,7 +763,7 @@ namespace wallet_rpc
       END_KV_SERIALIZE_MAP()
     };
   };
-  
+
   struct transfer_details
   {
     uint64_t amount;
@@ -1114,7 +1116,6 @@ namespace wallet_rpc
     std::string type;
     uint64_t unlock_time;
     cryptonote::subaddress_index subaddr_index;
-    std::string address;
     bool double_spend_seen;
 
     BEGIN_KV_SERIALIZE_MAP()
@@ -1129,7 +1130,6 @@ namespace wallet_rpc
       KV_SERIALIZE(type);
       KV_SERIALIZE(unlock_time)
       KV_SERIALIZE(subaddr_index);
-      KV_SERIALIZE(address);
       KV_SERIALIZE(double_spend_seen)
     END_KV_SERIALIZE_MAP()
   };
@@ -1178,62 +1178,6 @@ namespace wallet_rpc
 
       BEGIN_KV_SERIALIZE_MAP()
         KV_SERIALIZE(good)
-      END_KV_SERIALIZE_MAP()
-    };
-  };
-
-  struct COMMAND_RPC_GET_RESERVE_PROOF
-  {
-    struct request
-    {
-      bool all;
-      uint32_t account_index;     // ignored when `all` is true
-      uint64_t amount;            // ignored when `all` is true
-      std::string message;
-
-      BEGIN_KV_SERIALIZE_MAP()
-        KV_SERIALIZE(all)
-        KV_SERIALIZE(account_index)
-        KV_SERIALIZE(amount)
-        KV_SERIALIZE(message)
-      END_KV_SERIALIZE_MAP()
-    };
-
-    struct response
-    {
-      std::string signature;
-
-      BEGIN_KV_SERIALIZE_MAP()
-        KV_SERIALIZE(signature)
-      END_KV_SERIALIZE_MAP()
-    };
-  };
-
-  struct COMMAND_RPC_CHECK_RESERVE_PROOF
-  {
-    struct request
-    {
-      std::string address;
-      std::string message;
-      std::string signature;
-
-      BEGIN_KV_SERIALIZE_MAP()
-        KV_SERIALIZE(address)
-        KV_SERIALIZE(message)
-        KV_SERIALIZE(signature)
-      END_KV_SERIALIZE_MAP()
-    };
-
-    struct response
-    {
-      bool good;
-      uint64_t total;
-      uint64_t spent;
-
-      BEGIN_KV_SERIALIZE_MAP()
-        KV_SERIALIZE(good)
-        KV_SERIALIZE(total)
-        KV_SERIALIZE(spent)
       END_KV_SERIALIZE_MAP()
     };
   };
@@ -1578,8 +1522,8 @@ namespace wallet_rpc
 
       BEGIN_KV_SERIALIZE_MAP()
         KV_SERIALIZE(threads_count)
-        KV_SERIALIZE(do_background_mining)        
-        KV_SERIALIZE(ignore_battery)        
+        KV_SERIALIZE(do_background_mining)
+        KV_SERIALIZE(ignore_battery)
       END_KV_SERIALIZE_MAP()
     };
 

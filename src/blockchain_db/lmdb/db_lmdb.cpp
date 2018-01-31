@@ -1,4 +1,7 @@
-// Copyright (c) 2014-2017, The Monero Project
+// Copyright (c) 2017-2018, Haven Protocol
+//
+// Portions Copyright (c) 2014-2017 The Monero Project.
+//
 // All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without modification, are
@@ -3195,13 +3198,6 @@ bool BlockchainLMDB::is_read_only() const
     return true;
 
   return false;
-}
-
-void BlockchainLMDB::fixup()
-{
-  LOG_PRINT_L3("BlockchainLMDB::" << __func__);
-  // Always call parent as well
-  BlockchainDB::fixup();
 }
 
 #define RENAME_DB(name) \

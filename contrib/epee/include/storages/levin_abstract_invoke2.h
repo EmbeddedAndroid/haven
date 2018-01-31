@@ -60,7 +60,8 @@ namespace epee
         LOG_ERROR("Failed to load_from_binary on command " << command);
         return false;
       }
-      return result_struct.load(stg_ret);
+      result_struct.load(stg_ret);
+      return true;
     }
 
     template<class t_arg, class t_transport>
@@ -104,7 +105,9 @@ namespace epee
         LOG_ERROR("Failed to load_from_binary on command " << command);
         return false;
       }
-      return result_struct.load(stg_ret);
+      result_struct.load(stg_ret);
+
+      return true;
     }
 
     template<class t_result, class t_arg, class callback_t, class t_transport>
@@ -130,12 +133,7 @@ namespace epee
           cb(LEVIN_ERROR_FORMAT, result_struct, context);
           return false;
         }
-        if (!result_struct.load(stg_ret))
-        {
-          LOG_ERROR("Failed to load result struct on command " << command);
-          cb(LEVIN_ERROR_FORMAT, result_struct, context);
-          return false;
-        }
+        result_struct.load(stg_ret);
         cb(code, result_struct, context);
         return true;
       }, inv_timeout);
@@ -178,11 +176,7 @@ namespace epee
       boost::value_initialized<t_in_type> in_struct;
       boost::value_initialized<t_out_type> out_struct;
 
-      if (!static_cast<t_in_type&>(in_struct).load(strg))
-      {
-        LOG_ERROR("Failed to load in_struct in command " << command);
-        return -1;
-      }
+      static_cast<t_in_type&>(in_struct).load(strg);
       int res = cb(command, static_cast<t_in_type&>(in_struct), static_cast<t_out_type&>(out_struct), context);
       serialization::portable_storage strg_out;
       static_cast<t_out_type&>(out_struct).store(strg_out);
@@ -206,11 +200,7 @@ namespace epee
         return -1;
       }
       boost::value_initialized<t_in_type> in_struct;
-      if (!static_cast<t_in_type&>(in_struct).load(strg))
-      {
-        LOG_ERROR("Failed to load in_struct in notify " << command);
-        return -1;
-      }
+      static_cast<t_in_type&>(in_struct).load(strg);
       return cb(command, in_struct, context);
     }
 

@@ -95,7 +95,7 @@ static const struct {
   { 2, 38500, 0, 1522818000 },  // 4th April 2018
   { 3, 89200, 0, 1528942500 }   // 14th June 2018
 };
-static const uint64_t mainnet_hard_fork_version_1_till = 0;
+static const uint64_t mainnet_hard_fork_version_1_till = 1;
 
 static const struct {
   uint8_t version;
@@ -108,7 +108,7 @@ static const struct {
   { 2, 2510, 0, 1522713600 },
   { 3, 2600, 0, 1528489596 }
 };
-static const uint64_t testnet_hard_fork_version_1_till = 0;
+static const uint64_t testnet_hard_fork_version_1_till = 1;
 
 static const struct {
   uint8_t version;

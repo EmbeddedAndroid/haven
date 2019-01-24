@@ -1,3 +1,4 @@
+# Copyright (c) 2019, Haven Protocol
 # Copyright (c) 2014-2018, The Monero Project
 #
 # All rights reserved.
@@ -60,5 +61,5 @@ target_link_libraries(simplewallet
     ${EXTRA_LIBRARIES})
 set_property(TARGET simplewallet
   PROPERTY
-    OUTPUT_NAME "monero-wallet-cli")
+    OUTPUT_NAME "haven-wallet-cli")
 install(TARGETS simplewallet DESTINATION bin)

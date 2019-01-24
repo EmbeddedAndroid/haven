@@ -1,3 +1,4 @@
+# Copyright (c) 2017-2019, Haven Protcol
 # Copyright (c) 2014-2018, The Monero Project
 #
 # All rights reserved.
@@ -27,7 +28,7 @@
 # THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 cmake_minimum_required (VERSION 2.6)
-project (monero CXX)
+project (haven CXX)
 
 file(GLOB CRYPTONOTE_PROTOCOL *)
 source_group(cryptonote_protocol FILES ${CRYPTONOTE_PROTOCOL})
